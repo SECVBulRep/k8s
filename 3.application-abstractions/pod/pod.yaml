@@ -5,17 +5,9 @@ kind: Pod
 metadata:
   name: my-pod
 spec:
-  restartPolicy: Always
   containers:
-  - image: nginx:1.25
+  - image: quay.io/testing-farm/nginx:1.12
     name: nginx
     ports:
     - containerPort: 80
-    resources:
-      requests:
-        memory: "64Mi"
-        cpu: "250m"
-      limits:
-        memory: "128Mi"
-        cpu: "500m"
 ...
