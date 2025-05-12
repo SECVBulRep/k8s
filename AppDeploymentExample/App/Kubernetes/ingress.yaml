@@ -5,6 +5,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /  # Перезаписывает URL (важно при проксировании)
 spec:
+  ingressClassName: nginx
   rules:
   - host: api-weather.local            # Домен, на который смотрит Ingress
     http:
