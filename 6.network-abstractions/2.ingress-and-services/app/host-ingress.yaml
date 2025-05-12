@@ -15,3 +15,13 @@ spec:
             name: my-service
             port:
               number: 80
+  - host: my-app.local2
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: my-service
+            port:
+              number: 80
