@@ -13,7 +13,7 @@ spec:
         app: api-weather
     spec:
       containers:
-      - name: api_weather
+      - name: api-weather
         image: secvbulrep/api_weather:latest
         ports:
         - containerPort: 80
