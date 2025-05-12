@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api_weather
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api_weather
+  template:
+    metadata:
+      labels:
+        app: api_weather
+    spec:
+      containers:
+      - name: api_weather
+        image: secvbulrep/api_weather:latest
+        ports:
+        - containerPort: 80
