@@ -135,11 +135,7 @@ spec:
             - name: http
               containerPort: 80
             - name: https
-              containerPort: 443
-          volumeMounts:
-            - name: webhook-cert
-              mountPath: /usr/local/certificates/
-              readOnly: true
+              containerPort: 443          
           livenessProbe:
             httpGet:
               path: /healthz
