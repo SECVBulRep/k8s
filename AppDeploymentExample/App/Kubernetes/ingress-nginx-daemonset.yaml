@@ -159,11 +159,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 1
             successThreshold: 1
-            failureThreshold: 3
-      volumes:
-        - name: webhook-cert
-          secret:
-            secretName: ingress-nginx-admission
+            failureThreshold: 3      
 ---
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
