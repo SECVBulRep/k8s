@@ -10,7 +10,8 @@ app.MapGet("/proxy-weather", async (IHttpClientFactory httpClientFactory) =>
     var client = httpClientFactory.CreateClient();
 
     // Обращаемся к внутреннему сервису в Kubernetes
-    var response = await client.GetFromJsonAsync<object>("http://api-weather/weatherforecast");
+    var response = await client.GetFromJsonAsync<Dictionary<string, object>>("http://api-weather/weatherforecast");
+    response["ProxyTimeFIELD"] = DateTime.UtcNow;
     return Results.Ok(response);
 });
 
