@@ -17,3 +17,13 @@ spec:
             name: api-weather     # Имя Kubernetes-сервиса, на который будет идти трафик
             port:
               number: 80           # Порт внутри этого сервиса
+  - host: weather-proxy.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: weather-proxy
+            port:
+              number: 80
