@@ -1,4 +1,5 @@
 using System.Net;
+using Npgsql;
 
 namespace HostnameApi;
 
@@ -7,20 +8,42 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-
-        // Add services to the container.
-        // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+      
         builder.Services.AddOpenApi();
 
+        string connectionString = builder.Configuration.GetConnectionString("Postgres")!;       
+
         var app = builder.Build();
+
+        app.MapGet("/db-test", async () =>
+        {
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = new NpgsqlCommand("SELECT * FROM \"Shop\".\"Product\" ORDER BY \"Id\" ASC", conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var products = new List<Dictionary<string, object>>();
+
+            while (await reader.ReadAsync())
+            {
+                var row = new Dictionary<string, object>();
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    row[reader.GetName(i)] = reader.GetValue(i);
+                }
+                products.Add(row);
+            }
+
+            return Results.Ok(products);
+        });
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
         }
-
-        app.UseHttpsRedirection();
+       
 
         var summaries = new[]
         {
@@ -41,8 +64,8 @@ public class Program
             return new WeatherForecastResponse(hostname, forecast);
         })
         .WithName("GetWeatherForecast");
-
-        app.Run("http://0.0.0.0:80");
+        
+        app.Run();
     }
 }
 
