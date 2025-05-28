@@ -11,7 +11,9 @@ public class Program
 
         builder.Services.AddOpenApi();
 
-        //string connectionString = builder.Configuration.GetConnectionString("Postgres")!;      
+        string connectionString = builder.Configuration.GetConnectionString("Postgres")!;      
+
+        Console.WriteLine(connectionString);    
 
         var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
         var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
@@ -19,7 +21,10 @@ public class Program
         var dbUser = Environment.GetEnvironmentVariable("POSTGRES_USER");
         var dbPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
 
-        string connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
+        connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
+
+        Console.WriteLine(connectionString);       
+
 
         var app = builder.Build();
 
