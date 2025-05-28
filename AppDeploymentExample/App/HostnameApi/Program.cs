@@ -8,10 +8,18 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-      
+
         builder.Services.AddOpenApi();
 
-        string connectionString = builder.Configuration.GetConnectionString("Postgres")!;       
+        //string connectionString = builder.Configuration.GetConnectionString("Postgres")!;      
+
+        var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
+        var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
+        var dbName = builder.Configuration["ConnectionStrings:PostgresDb"];
+        var dbUser = Environment.GetEnvironmentVariable("POSTGRES_USER");
+        var dbPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
+
+        string connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
 
         var app = builder.Build();
 
@@ -38,12 +46,18 @@ public class Program
             return Results.Ok(products);
         });
 
+
+        app.MapGet("/ver", () =>
+        {             
+            return Results.Ok(10);
+        });
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
         }
-       
+
 
         var summaries = new[]
         {
@@ -64,7 +78,7 @@ public class Program
             return new WeatherForecastResponse(hostname, forecast);
         })
         .WithName("GetWeatherForecast");
-        
+
         app.Run();
     }
 }
