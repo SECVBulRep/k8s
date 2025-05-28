@@ -16,3 +16,7 @@ kubectl get pods -l app=api-weather
 
 5) проверка работы
 curl -H "Host: api-weather.local" http://api-weather.local:31519/weatherforecast
+
+
+6)  добавим секрет 
+kubectl apply -f postgres-secret.yaml
