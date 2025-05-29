@@ -1,5 +1,7 @@
 using System.Net;
 using Npgsql;
+using Serilog;
+using Serilog.Events;
 
 namespace HostnameApi;
 
@@ -7,13 +9,27 @@ public class Program
 {
     public static void Main(string[] args)
     {
+        // Настройка Serilog до Build
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
+
         var builder = WebApplication.CreateBuilder(args);
 
+        // Подключение Serilog к ASP.NET Core
+        builder.Host.UseSerilog();
+
+        // Конфигурация (включая appsettings.json)
+        builder.Configuration
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
+            .AddEnvironmentVariables();
+
         builder.Services.AddOpenApi();
-
-        string connectionString = builder.Configuration.GetConnectionString("Postgres")!;      
-
-        Console.WriteLine(connectionString);    
 
         var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
         var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
@@ -21,48 +37,63 @@ public class Program
         var dbUser = Environment.GetEnvironmentVariable("POSTGRES_USER");
         var dbPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
 
-        connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
-
-        Console.WriteLine(connectionString);       
-
+        var connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
 
         var app = builder.Build();
 
+        Log.Information("Building PostgreSQL connection string:");
+        Log.Information("PostgresHost: {host}", dbHost);
+        Log.Information("PostgresPort: {port}", dbPort);
+        Log.Information("PostgresDb: {db}", dbName);
+        Log.Information("PostgresUser: {user}", dbUser);
+        Log.Information("PostgresPassword: {pw}", dbPassword);
+        Log.Information("Connection string: {conn}", connectionString);
+
         app.MapGet("/db-test", async () =>
         {
-            await using var conn = new NpgsqlConnection(connectionString);
-            await conn.OpenAsync();
-
-            await using var cmd = new NpgsqlCommand("SELECT * FROM \"Shop\".\"Product\" ORDER BY \"Id\" ASC", conn);
-            await using var reader = await cmd.ExecuteReaderAsync();
-
-            var products = new List<Dictionary<string, object>>();
-
-            while (await reader.ReadAsync())
+            try
             {
-                var row = new Dictionary<string, object>();
-                for (int i = 0; i < reader.FieldCount; i++)
+                await using var conn = new NpgsqlConnection(connectionString);
+                await conn.OpenAsync();
+
+                await using var cmd = new NpgsqlCommand("SELECT * FROM \"Shop\".\"Product\" ORDER BY \"Id\" ASC", conn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                var products = new List<Dictionary<string, object>>();
+
+                while (await reader.ReadAsync())
                 {
-                    row[reader.GetName(i)] = reader.GetValue(i);
+                    var row = new Dictionary<string, object>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        row[reader.GetName(i)] = reader.GetValue(i);
+                    }
+
+                    products.Add(row);
                 }
-                products.Add(row);
+
+                return Results.Ok(products);
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error while accessing PostgreSQL in /db-test");
 
-            return Results.Ok(products);
+                var user = Environment.GetEnvironmentVariable("POSTGRES_USER");
+                var password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
+
+                Log.Information("PostgresUser: {user}", user);
+                Log.Information("PostgresPassword: {pw}", password);
+
+                return Results.Problem("Database connection failed: " + ex.Message);
+            }
         });
 
+        app.MapGet("/ver", () => Results.Ok(15));
 
-        app.MapGet("/ver", () =>
-        {             
-            return Results.Ok(10);
-        });
-
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
         }
-
 
         var summaries = new[]
         {
@@ -81,8 +112,7 @@ public class Program
                 ))
                 .ToArray();
             return new WeatherForecastResponse(hostname, forecast);
-        })
-        .WithName("GetWeatherForecast");
+        }).WithName("GetWeatherForecast");
 
         app.Run();
     }
