@@ -20,3 +20,12 @@ curl -H "Host: api-weather.local" http://api-weather.local:31519/weatherforecast
 
 6)  добавим секрет 
 kubectl apply -f postgres-secret.yaml
+
+
+7) пересобрат образ
+
+docker build -t secvbulrep/api_weather:latest .
+docker push secvbulrep/api_weather:latest
+
+8)  логи
+ kubectl logs -l app=api-weather 
