@@ -1,3 +1,4 @@
+# redis-statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -26,16 +27,22 @@ spec:
             - name: ALLOW_EMPTY_PASSWORD
               value: "yes"
             
-            # Исправление 1: REDIS_CLUSTER_CREATOR только для первого пода
-            - name: REDIS_CLUSTER_CREATOR
-              value: "yes"  # Активно только для redis-0!
-            
-            # Исправление 2: Задержка для DNS
-            - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
-              value: "30"  # Ждать 30 сек перед разрешением имён
-            
+            # Ключевые изменения:
             - name: REDIS_NODES
-              value: "redis-0.redis-headless.redis-cluster.svc.cluster.local redis-1.redis-headless.redis-cluster.svc.cluster.local redis-2.redis-headless.redis-cluster.svc.cluster.local"
+              value: "redis-0,redis-1,redis-2"  # Используем короткие имена
+            
+            - name: REDIS_CLUSTER_REPLICAS
+              value: "1"  # По 1 реплике на мастер
+            
+            # Только первый под создает кластер
+            - name: REDIS_CLUSTER_CREATOR
+              value: 
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+                operator: "Equal"
+                values: ["redis-0"]
+            
             - name: REDIS_CLUSTER_ANNOUNCE_IP
               valueFrom:
                 fieldRef:
@@ -44,14 +51,21 @@ spec:
               value: "6379"
             - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
               value: "16379"
-            - name: REDIS_CLUSTER_DYNAMIC_IPS
-              value: "yes"
+            
+            # Увеличиваем таймауты
+            - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
+              value: "60"
+            - name: REDIS_CLUSTER_DNS_LOOKUP_RETRIES
+              value: "10"
+            - name: REDIS_CLUSTER_DNS_LOOKUP_SLEEP
+              value: "5"
           
-          # Исправление 3: Проверка готовности DNS
-          lifecycle:
-            postStart:
-              exec:
-                command: 
-                  - "/bin/sh"
-                  - "-c"
-                  - "sleep 10 && nslookup redis-headless.redis-cluster.svc.cluster.local"
+          # Добавляем проверку готовности
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 1
