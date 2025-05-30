@@ -1,4 +1,3 @@
-# redis-statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -27,22 +26,21 @@ spec:
             - name: ALLOW_EMPTY_PASSWORD
               value: "yes"
             
-            # Ключевые изменения:
+            # Исправление 1: Короткие имена узлов
             - name: REDIS_NODES
-              value: "redis-0,redis-1,redis-2"  # Используем короткие имена
+              value: "redis-0,redis-1,redis-2"
             
-            - name: REDIS_CLUSTER_REPLICAS
-              value: "1"  # По 1 реплике на мастер
-            
-            # Только первый под создает кластер
+            # Исправление 2: Правильный формат REDIS_CLUSTER_CREATOR
             - name: REDIS_CLUSTER_CREATOR
-              value: 
-                valueFrom:
-                  fieldRef:
-                    fieldPath: metadata.name
-                operator: "Equal"
-                values: ["redis-0"]
+              value: "no"  # По умолчанию выключено
             
+            # Исправление 3: Механизм активации только для первого пода
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: REDIS_CLUSTER_REPLICAS
+              value: "1"
             - name: REDIS_CLUSTER_ANNOUNCE_IP
               valueFrom:
                 fieldRef:
@@ -51,21 +49,36 @@ spec:
               value: "6379"
             - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
               value: "16379"
+            - name: REDIS_CLUSTER_DYNAMIC_IPS
+              value: "no"
             
-            # Увеличиваем таймауты
+            # Таймауты для DNS
             - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
               value: "60"
             - name: REDIS_CLUSTER_DNS_LOOKUP_RETRIES
               value: "10"
-            - name: REDIS_CLUSTER_DNS_LOOKUP_SLEEP
-              value: "5"
           
-          # Добавляем проверку готовности
+          # Команда для активации создателя кластера только на redis-0
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              # Активируем создание кластера только на первом поде
+              if [[ "$MY_POD_NAME" == "redis-0" ]]; then
+                export REDIS_CLUSTER_CREATOR="yes"
+                echo "Starting as cluster creator"
+              else
+                echo "Starting as cluster member"
+              fi
+              # Запускаем основной скрипт
+              exec /entrypoint.sh /run.sh
+          
+          # Проверка готовности
           readinessProbe:
             exec:
               command:
-                - redis-cli
-                - ping
-            initialDelaySeconds: 10
+                - sh
+                - -c
+                - "redis-cli -h 127.0.0.1 ping | grep PONG"
+            initialDelaySeconds: 20
             periodSeconds: 5
             timeoutSeconds: 1
