@@ -25,55 +25,35 @@ spec:
           env:
             - name: ALLOW_EMPTY_PASSWORD
               value: "yes"
-            
-            # Исправление 1: Короткие имена узлов
             - name: REDIS_NODES
               value: "redis-0.redis-headless.redis-cluster.svc.cluster.local,redis-1.redis-headless.redis-cluster.svc.cluster.local,redis-2.redis-headless.redis-cluster.svc.cluster.local"
-            
-            # Исправление 2: Правильный путь к entrypoint
-            - name: REDIS_CLUSTER_CREATOR
-              value: "no"  # По умолчанию выключено
-            
-            - name: MY_POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
             - name: REDIS_CLUSTER_REPLICAS
-              value: "1"
+              value: "0"
             - name: REDIS_CLUSTER_ANNOUNCE_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
+              value: "172.16.29.241"  # 👈 Фиксированный внешний IP
             - name: REDIS_CLUSTER_ANNOUNCE_PORT
               value: "6379"
             - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
               value: "16379"
             - name: REDIS_CLUSTER_DYNAMIC_IPS
               value: "no"
-            
-            # Увеличенные таймауты
             - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
               value: "120"
-          
-          # Исправление 3: Правильный путь к скрипту Bitnami
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           command: ["/bin/bash", "-c"]
           args:
             - |
-              # Активируем создание кластера только на первом поде
               if [[ "$MY_POD_NAME" == "redis-0" ]]; then
                 export REDIS_CLUSTER_CREATOR="yes"
                 echo "Starting as cluster creator"
               else
                 echo "Starting as cluster member"
               fi
-              
-              # Задержка для стабилизации сети
               sleep 30
-              
-              # Правильный путь к скрипту запуска Bitnami
               exec /opt/bitnami/scripts/redis-cluster/entrypoint.sh /opt/bitnami/scripts/redis-cluster/run.sh
-          
-          # Проверка готовности с увеличенным таймаутом
           readinessProbe:
             exec:
               command:
