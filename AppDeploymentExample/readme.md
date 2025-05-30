@@ -155,3 +155,52 @@ spec:
 
 
 kubectl apply -f redis-headless-svc.yaml
+
+
+Шаг 5: StatefulSet для Redis Cluster
+📌 Зачем?
+
+Redis Cluster требует стабильных имён pod'ов (например, redis-0), поэтому мы используем StatefulSet, а не Deployment.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: redis-cluster
+spec:
+  serviceName: redis-headless
+  replicas: 3  # минимум 3 мастера, можно потом добавить реплики
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: bitnami/redis-cluster:7.2
+          ports:
+            - containerPort: 6379
+              name: redis
+            - containerPort: 16379
+              name: cluster-bus
+          env:
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_CLUSTER_ANNOUNCE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: REDIS_CLUSTER_ANNOUNCE_PORT
+              value: "6379"
+            - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
+              value: "16379"
+            - name: REDIS_CLUSTER_DYNAMIC_IPS
+              value: "yes"
+            - name: REDIS_CLUSTER_CREATOR
+              value: "yes"
+
+kubectl apply -f redis-statefulset.yaml
+
