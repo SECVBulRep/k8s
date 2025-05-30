@@ -131,3 +131,26 @@ metadata:
 
 kubectl apply -f namespace.yaml
 
+ Шаг 4: Headless-сервис для Redis
+📌 Зачем?
+
+Redis Cluster требует видеть все свои pod'ы по DNS-именам (redis-0, redis-1, ...). Headless-сервис нужен, чтобы создать DNS-записи на каждый pod.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: redis-cluster
+labels:
+  app: redis
+spec:
+  clusterIP: None  # важно: делает сервис headless
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+    - name: cluster-bus
+      port: 16379
+
+kubectl apply -f redis-headless-svc.yaml
