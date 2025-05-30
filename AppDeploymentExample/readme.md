@@ -139,12 +139,12 @@ Redis Cluster требует видеть все свои pod'ы по DNS-име
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-headless
-  namespace: redis-cluster
-labels:
-  app: redis
+  name: redis-headless         # имя сервиса
+  namespace: redis-cluster     # namespace, куда устанавливается
+  labels:                      # 🟢 labels должны быть внутри metadata!
+    app: redis
 spec:
-  clusterIP: None  # важно: делает сервис headless
+  clusterIP: None              # ключевая часть: headless-сервис
   selector:
     app: redis
   ports:
@@ -152,5 +152,6 @@ spec:
       port: 6379
     - name: cluster-bus
       port: 16379
+
 
 kubectl apply -f redis-headless-svc.yaml
