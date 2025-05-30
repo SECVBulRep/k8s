@@ -30,11 +30,10 @@ spec:
             - name: REDIS_NODES
               value: "redis-0,redis-1,redis-2"
             
-            # Исправление 2: Правильный формат REDIS_CLUSTER_CREATOR
+            # Исправление 2: Правильный путь к entrypoint
             - name: REDIS_CLUSTER_CREATOR
               value: "no"  # По умолчанию выключено
             
-            # Исправление 3: Механизм активации только для первого пода
             - name: MY_POD_NAME
               valueFrom:
                 fieldRef:
@@ -52,13 +51,11 @@ spec:
             - name: REDIS_CLUSTER_DYNAMIC_IPS
               value: "no"
             
-            # Таймауты для DNS
+            # Увеличенные таймауты
             - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
-              value: "60"
-            - name: REDIS_CLUSTER_DNS_LOOKUP_RETRIES
-              value: "10"
+              value: "120"
           
-          # Команда для активации создателя кластера только на redis-0
+          # Исправление 3: Правильный путь к скрипту Bitnami
           command: ["/bin/bash", "-c"]
           args:
             - |
@@ -69,16 +66,20 @@ spec:
               else
                 echo "Starting as cluster member"
               fi
-              # Запускаем основной скрипт
-              exec /entrypoint.sh /run.sh
+              
+              # Задержка для стабилизации сети
+              sleep 30
+              
+              # Правильный путь к скрипту запуска Bitnami
+              exec /opt/bitnami/scripts/redis-cluster/entrypoint.sh /opt/bitnami/scripts/redis-cluster/run.sh
           
-          # Проверка готовности
+          # Проверка готовности с увеличенным таймаутом
           readinessProbe:
             exec:
               command:
                 - sh
                 - -c
                 - "redis-cli -h 127.0.0.1 ping | grep PONG"
-            initialDelaySeconds: 20
-            periodSeconds: 5
-            timeoutSeconds: 1
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
