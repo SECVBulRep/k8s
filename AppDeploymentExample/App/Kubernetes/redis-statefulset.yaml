@@ -28,7 +28,7 @@ spec:
             
             # Исправление 1: Короткие имена узлов
             - name: REDIS_NODES
-              value: "redis-0,redis-1,redis-2"
+              value: "redis-0.redis-headless.redis-cluster.svc.cluster.local,redis-1.redis-headless.redis-cluster.svc.cluster.local,redis-2.redis-headless.redis-cluster.svc.cluster.local"
             
             # Исправление 2: Правильный путь к entrypoint
             - name: REDIS_CLUSTER_CREATOR
