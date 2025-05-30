@@ -12,6 +12,12 @@ spec:
     - name: redis
       port: 6379
       targetPort: 6379
-    - name: cluster-bus
+    - name: cluster-bus-0
       port: 16379
       targetPort: 16379
+    - name: cluster-bus-1
+      port: 16380
+      targetPort: 16380
+    - name: cluster-bus-2
+      port: 16381
+      targetPort: 16381

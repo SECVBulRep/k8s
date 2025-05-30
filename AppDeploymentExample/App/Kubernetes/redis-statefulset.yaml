@@ -21,7 +21,11 @@ spec:
             - containerPort: 6379
               name: redis
             - containerPort: 16379
-              name: cluster-bus
+              name: cluster-bus-0
+            - containerPort: 16380
+              name: cluster-bus-1
+            - containerPort: 16381
+              name: cluster-bus-2
           env:
             - name: ALLOW_EMPTY_PASSWORD
               value: "yes"
@@ -29,16 +33,8 @@ spec:
               value: "redis-0.redis-headless.redis-cluster.svc.cluster.local,redis-1.redis-headless.redis-cluster.svc.cluster.local,redis-2.redis-headless.redis-cluster.svc.cluster.local"
             - name: REDIS_CLUSTER_REPLICAS
               value: "0"
-            - name: REDIS_CLUSTER_ANNOUNCE_IP
-              value: "172.16.29.241"  # 👈 Фиксированный внешний IP
-            - name: REDIS_CLUSTER_ANNOUNCE_PORT
-              value: "6379"
-            - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
-              value: "16379"
             - name: REDIS_CLUSTER_DYNAMIC_IPS
               value: "no"
-            - name: REDIS_CLUSTER_SLEEP_BEFORE_DNS_LOOKUP
-              value: "120"
             - name: MY_POD_NAME
               valueFrom:
                 fieldRef:
@@ -48,10 +44,16 @@ spec:
             - |
               if [[ "$MY_POD_NAME" == "redis-0" ]]; then
                 export REDIS_CLUSTER_CREATOR="yes"
-                echo "Starting as cluster creator"
-              else
-                echo "Starting as cluster member"
+                export REDIS_CLUSTER_ANNOUNCE_BUS_PORT=16379
+              elif [[ "$MY_POD_NAME" == "redis-1" ]]; then
+                export REDIS_CLUSTER_ANNOUNCE_BUS_PORT=16380
+              elif [[ "$MY_POD_NAME" == "redis-2" ]]; then
+                export REDIS_CLUSTER_ANNOUNCE_BUS_PORT=16381
               fi
+
+              export REDIS_CLUSTER_ANNOUNCE_PORT=6379
+              export REDIS_CLUSTER_ANNOUNCE_IP=172.16.29.241
+
               sleep 30
               exec /opt/bitnami/scripts/redis-cluster/entrypoint.sh /opt/bitnami/scripts/redis-cluster/run.sh
           readinessProbe:
