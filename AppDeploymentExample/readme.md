@@ -112,3 +112,22 @@ namespace: metallb-system	Обязательно, потому что MetalLB CR
         Говорит: "IP 192.168.1.240 принадлежит вот этому MAC-адресу (worker-нода №X)"
 
         Таким образом, весь трафик на 192.168.1.240 пойдёт в Kubernetes-кластер на соответствующую ноду
+
+Убедись, что ресурсы созданы
+
+kubectl get ipaddresspool -n metallb-system
+kubectl get l2advertisement -n metallb-system
+
+
+Шаг 3: Создание namespace для Redis
+📌 Зачем?
+
+Чтобы изолировать Redis и не мешать другим приложениям.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-cluster
+
+kubectl apply -f namespace.yaml
+
