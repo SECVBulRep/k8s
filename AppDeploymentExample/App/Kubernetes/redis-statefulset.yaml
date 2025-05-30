@@ -4,8 +4,8 @@ metadata:
   name: redis
   namespace: redis-cluster
 spec:
-  serviceName: redis-headless
-  replicas: 3  # минимум 3 мастера, можно потом добавить реплики
+  serviceName: redis-headless   # важно: имя headless-сервиса
+  replicas: 3                   # три узла для Redis Cluster (мастера)
   selector:
     matchLabels:
       app: redis
@@ -16,24 +16,33 @@ spec:
     spec:
       containers:
         - name: redis
-          image: bitnami/redis-cluster:7.2
+          image: bitnami/redis-cluster:7.2  # образ Redis с кластерной поддержкой
           ports:
-            - containerPort: 6379
+            - containerPort: 6379           # основной порт Redis
               name: redis
-            - containerPort: 16379
+            - containerPort: 16379          # кластерный bus-порт Redis
               name: cluster-bus
           env:
             - name: ALLOW_EMPTY_PASSWORD
               value: "yes"
+
+            # Ключевая переменная — список всех узлов, участвующих в кластере
+            - name: REDIS_NODES
+              value: "redis-0.redis-headless.redis-cluster.svc.cluster.local redis-1.redis-headless.redis-cluster.svc.cluster.local redis-2.redis-headless.redis-cluster.svc.cluster.local"
+
+            # Указывает, кто должен создать кластер
+            - name: REDIS_CLUSTER_CREATOR
+              value: "yes"
+
+            # IP, который Redis будет "анонсировать" для кластера
             - name: REDIS_CLUSTER_ANNOUNCE_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+
             - name: REDIS_CLUSTER_ANNOUNCE_PORT
               value: "6379"
             - name: REDIS_CLUSTER_ANNOUNCE_BUS_PORT
               value: "16379"
             - name: REDIS_CLUSTER_DYNAMIC_IPS
-              value: "yes"
-            - name: REDIS_CLUSTER_CREATOR
               value: "yes"
