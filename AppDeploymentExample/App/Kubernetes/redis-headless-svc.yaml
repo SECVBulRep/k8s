@@ -1,11 +1,11 @@
-# redis-headless-svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-headless
   namespace: redis-cluster
   annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"  # Важно!
+    # Важно для StatefulSet
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true" 
 spec:
   clusterIP: None
   selector:
@@ -15,4 +15,5 @@ spec:
       port: 6379
     - name: cluster-bus
       port: 16379
-  publishNotReadyAddresses: true  # Разрешаем DNS до готовности подов
+  # Критически важная настройка:
+  publishNotReadyAddresses: true
