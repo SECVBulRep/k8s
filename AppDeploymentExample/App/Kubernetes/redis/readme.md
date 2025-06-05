@@ -150,3 +150,96 @@ redis-cluster        ClusterIP      None            6379/TCP,16379/TCP
 redis-cluster-0      LoadBalancer   192.168.1.100   6379/TCP,16379/TCP
 redis-cluster-1      LoadBalancer   192.168.1.101   6379/TCP,16379/TCP
 ...
+
+Шаг 4: Инициализация Redis-кластера
+
+    Запустите временный под с redis-cli:
+
+bash
+kubectl run redis-cli --rm -it --image=redis:7.0 --namespace=redis -- bash
+
+    Соберите DNS-имена всех нод:
+
+bash
+redis-cluster-0.redis-cluster.redis.svc.cluster.local:6379
+redis-cluster-1.redis-cluster.redis.svc.cluster.local:6379
+redis-cluster-2.redis-cluster.redis.svc.cluster.local:6379
+redis-cluster-3.redis-cluster.redis.svc.cluster.local:6379
+redis-cluster-4.redis-cluster.redis.svc.cluster.local:6379
+redis-cluster-5.redis-cluster.redis.svc.cluster.local:6379
+
+    Инициализируйте кластер:
+
+bash
+redis-cli --cluster create \
+  redis-cluster-0.redis-cluster.redis.svc.cluster.local:6379 \
+  redis-cluster-1.redis-cluster.redis.svc.cluster.local:6379 \
+  redis-cluster-2.redis-cluster.redis.svc.cluster.local:6379 \
+  redis-cluster-3.redis-cluster.redis.svc.cluster.local:6379 \
+  redis-cluster-4.redis-cluster.redis.svc.cluster.local:6379 \
+  redis-cluster-5.redis-cluster.redis.svc.cluster.local:6379 \
+  --cluster-replicas 1 -a your-secure-password
+
+    Подтвердите создание, введя yes.
+
+Это создаст кластер с 3 мастерами и 3 репликами.
+Шаг 5: Проверка доступности
+5.1. Проверка внутреннего доступа
+
+    Запустите redis-cli:
+
+bash
+kubectl run redis-cli --rm -it --image=redis:7.0 --namespace=redis -- bash
+
+    Подключитесь:
+
+bash
+redis-cli -h redis-cluster.redis.svc.cluster.local -p 6379 -a your-secure-password
+
+    Проверьте кластер:
+
+bash
+CLUSTER INFO
+
+Ожидаемый вывод:
+text
+cluster_state:ok
+cluster_slots_assigned:16384
+cluster_slots_ok:16384
+...
+
+    Убедитесь, что данные только в памяти:
+
+bash
+CONFIG GET appendonly
+CONFIG GET save
+
+Ожидаемый вывод:
+text
+1) "appendonly"
+2) "no"
+1) "save"
+2) ""
+
+    Проверьте ноды:
+
+bash
+CLUSTER NODES
+5.2. Проверка внешнего доступа
+
+    Найдите внешние IP:
+
+bash
+kubectl get svc -n redis
+
+    Подключитесь с внешнего хоста:
+
+bash
+redis-cli -h 192.168.1.100 -p 6379 -a your-secure-password
+
+    Выполните те же проверки:
+
+bash
+CLUSTER INFO
+CONFIG GET appendonly
+CONFIG GET save
