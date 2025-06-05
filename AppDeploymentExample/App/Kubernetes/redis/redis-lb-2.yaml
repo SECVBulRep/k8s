@@ -1,0 +1,20 @@
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-2
+  namespace: redis
+  annotations:
+    metallb.universe.tf/address-pool: redis-pool
+spec:
+  type: LoadBalancer
+  selector:
+    statefulset.kubernetes.io/pod-name: redis-cluster-2
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: redis
+  - port: 16379
+    targetPort: 16379
+    name: cluster
+```

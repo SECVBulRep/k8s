@@ -71,3 +71,54 @@ text
 NAME              STATUS   AGE
 redis             Active   1m
 ...
+
+Шаг 3: Развертывание Redis-кластера
+
+Мы создадим Redis-кластер с 6 нодами (3 мастера + 3 реплики) с помощью StatefulSet для управления нодами и сервисами для внутреннего и внешнего доступа.
+3.1. Создание ConfigMap для конфигурации Redis
+
+Создайте файл redis-config.yaml:
+redis-config.yaml
+yaml
+
+Объяснение:
+
+    cluster-enabled yes: Включает кластерный режим.
+    appendonly no: Отключает AOF (данные только в памяти).
+    save "": Отключает RDB-снимки.
+    requirepass: Задает пароль для защиты.
+
+Примените:
+bash
+kubectl apply -f redis-config.yaml
+3.2. Создание StatefulSet для Redis-ноды
+
+Создайте файл redis-statefulset.yaml:
+redis-statefulset.yaml
+yaml
+
+Объяснение:
+
+    replicas: 6: 6 нод (3 мастера + 3 реплики).
+    serviceName: redis-cluster: Связывает StatefulSet с headless-сервисом.
+    image: redis:7.0: Официальный образ Redis.
+    args: Указывает путь к конфигурации.
+    volumeClaimTemplates: []: Без томов, так как данные в памяти.
+
+Примените:
+bash
+kubectl apply -f redis-statefulset.yaml
+3.3. Создание headless-сервиса для внутреннего доступа
+
+Создайте файл redis-service-headless.yaml:
+redis-service-headless.yaml
+yaml
+
+Объяснение:
+
+    clusterIP: None: Headless-сервис для прямого доступа к подам через DNS (например, redis-cluster-0.redis-cluster.redis.svc.cluster.local).
+    Порты: 6379 (Redis), 16379 (кластерный протокол).
+
+Примените:
+bash
+kubectl apply -f redis-service-headless.yaml
