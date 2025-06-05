@@ -1,12 +1,23 @@
-1.1. Установка MetalLB
+Шаг 1: Установка и настройка MetalLB
 
-    Добавьте namespace для MetalLB:
+Вместо создания собственного metallb-install.yaml мы используем официальный манифест MetalLB, доступный на GitHub.
+1.1. Установка MetalLB с готовым шаблоном
+
+    Примените официальный манифест MetalLB для версии 0.14.8 (последняя стабильная на момент 2025 года):
 
 bash
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml
 
+temp.sh: line 1: kubectl: command not found
 
-Это создаст namespace metallb-system и развернет компоненты MetalLB.
+Что делает этот манифест:
+
+    Создает namespace metallb-system.
+    Разворачивает:
+        Deployment для контроллера MetalLB.
+        DaemonSet для speaker'ов (агентов, объявляющих IP-адреса).
+        Необходимые RBAC-роли и ServiceAccount.
+        Secret для внутренней коммуникации (memberlist).
 
     Проверьте, что поды MetalLB запустились:
 
@@ -22,48 +33,34 @@ speaker-xxx                   1/1     Running   0          2m
 1.2. Настройка пула IP-адресов
 
 Создайте файл metallb-config.yaml для конфигурации пула IP-адресов и L2-рекламы:
+metallb-config.yaml
 yaml
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: redis-pool
-  namespace: metallb-system
-spec:
-  addresses:
-  - 192.168.1.100-192.168.1.120  # Замените на ваш диапазон IP-адресов
----
-apiVersion: metallb.io/v1beta1
-kind: L2Advertisement
-metadata:
-  name: redis-l2
-  namespace: metallb-system
-spec:
-  ipAddressPools:
-  - redis-pool
 
-Замечания:
+Замечание: Убедитесь, что диапазон 192.168.1.100-192.168.1.120 доступен в вашей сети и не конфликтует с другими устройствами. Это должны быть IP-адреса, достижимые из внешней сети, где клиенты будут подключаться к Redis.
 
-    Убедитесь, что диапазон IP-адресов (192.168.1.100-192.168.1.120) доступен в вашей сети и не конфликтует с другими устройствами.
-    Эти IP должны быть достижимы из внешней сети, где клиенты будут подключаться к Redis.
-
-Примените конфигурацию:
+Примените:
 bash
 kubectl apply -f metallb-config.yaml
 
-Проверьте, что пул создан:
+Проверьте пул:
 bash
 kubectl get ipaddresspool -n metallb-system
+
+temp.sh: line 1: kubectl: command not found
 
 Ожидаемый вывод:
 text
 NAME         AGE
 redis-pool   1m
-
 Шаг 2: Создание namespace для Redis
 
-Создайте namespace redis для изоляции ресурсов:
+Создайте манифест redis-namespace.yaml:
+redis-namespace.yaml
+yaml
+
+Примените:
 bash
-kubectl create namespace redis
+kubectl apply -f redis-namespace.yaml
 
 Проверьте:
 bash
