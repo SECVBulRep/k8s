@@ -122,3 +122,31 @@ yaml
 Примените:
 bash
 kubectl apply -f redis-service-headless.yaml
+
+3.4. Создание LoadBalancer-сервисов для внешнего доступа
+
+Для каждой ноды создайте LoadBalancer-сервис. Пример для redis-cluster-0 (redis-lb-0.yaml):
+redis-lb-0.yaml
+yaml
+
+Создайте аналогичные файлы для redis-cluster-1 до redis-cluster-5, изменив name и selector. Пример для redis-cluster-1:
+redis-lb-1.yaml
+yaml
+
+Примените все сервисы:
+bash
+kubectl apply -f redis-lb-0.yaml
+kubectl apply -f redis-lb-1.yaml
+# ... и так далее для redis-lb-2.yaml до redis-lb-5.yaml
+
+Проверьте сервисы:
+bash
+kubectl get svc -n redis
+
+Ожидаемый вывод:
+text
+NAME                 TYPE           EXTERNAL-IP     PORT(S)
+redis-cluster        ClusterIP      None            6379/TCP,16379/TCP
+redis-cluster-0      LoadBalancer   192.168.1.100   6379/TCP,16379/TCP
+redis-cluster-1      LoadBalancer   192.168.1.101   6379/TCP,16379/TCP
+...

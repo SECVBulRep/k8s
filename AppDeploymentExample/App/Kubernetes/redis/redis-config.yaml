@@ -11,4 +11,4 @@ data:
     appendonly no
     save ""
     protected-mode no
-    requirepass your-secure-password  # Замените на надежный пароль
+    requirepass your-secure-password
