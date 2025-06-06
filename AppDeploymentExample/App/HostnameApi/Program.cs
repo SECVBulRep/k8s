@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using Serilog;
 using Serilog.Events;
@@ -30,12 +31,21 @@ public class Program
             .AddEnvironmentVariables();
 
         builder.Services.AddOpenApi();
+        builder.Services.AddSingleton<RedisService>();
 
         var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
         var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
         var dbName = builder.Configuration["ConnectionStrings:PostgresDb"];
+        
         var dbUser = Environment.GetEnvironmentVariable("POSTGRES_USER");
         var dbPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD");
+
+        if (builder.Environment.IsDevelopment())
+        { 
+             dbUser = builder.Configuration["ConnectionStrings:PostgresUser"];
+             dbPassword = builder.Configuration["ConnectionStrings:PostgresPassword"];
+        }
+
 
         var connectionString = $"Host={dbHost};Port={dbPort};Username={dbUser};Password={dbPassword};Database={dbName}";
 
@@ -49,28 +59,33 @@ public class Program
         Log.Information("PostgresPassword: {pw}", dbPassword);
         Log.Information("Connection string: {conn}", connectionString);
 
-        app.MapGet("/db-test", async () =>
+        app.MapGet("/db-test", async ([FromServices] RedisService redisService) =>
         {
             try
             {
-                await using var conn = new NpgsqlConnection(connectionString);
-                await conn.OpenAsync();
-
-                await using var cmd = new NpgsqlCommand("SELECT * FROM \"Shop\".\"Product\" ORDER BY \"Id\" ASC", conn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-
-                var products = new List<Dictionary<string, object>>();
-
-                while (await reader.ReadAsync())
+                var cacheKey = "products:all";
+                var products = await redisService.GetCachedProductsAsync(cacheKey, async () =>
                 {
-                    var row = new Dictionary<string, object>();
-                    for (int i = 0; i < reader.FieldCount; i++)
+                    await using var conn = new NpgsqlConnection(connectionString);
+                    await conn.OpenAsync();
+
+                    await using var cmd = new NpgsqlCommand("SELECT * FROM \"Shop\".\"Product\" ORDER BY \"Id\" ASC", conn);
+                    await using var reader = await cmd.ExecuteReaderAsync();
+
+                    var productList = new List<Dictionary<string, object>>();
+
+                    while (await reader.ReadAsync())
                     {
-                        row[reader.GetName(i)] = reader.GetValue(i);
+                        var row = new Dictionary<string, object>();
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            row[reader.GetName(i)] = reader.GetValue(i);
+                        }
+                        productList.Add(row);
                     }
 
-                    products.Add(row);
-                }
+                    return productList;
+                });
 
                 return Results.Ok(products);
             }
