@@ -14,14 +14,30 @@ spec:
       labels:
         app: redis-cluster
     spec:
+      initContainers:
+      - name: set-announce-ip
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          POD_NAME=$(cat /etc/podname/name)
+          ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
+          echo "--cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
+        volumeMounts:
+        - name: podname
+          mountPath: /etc/podname
+        - name: announce-ips
+          mountPath: /etc/announce-ips
+        - name: config
+          mountPath: /etc/redis
       containers:
       - name: redis
         image: redis:7.0
         args:
         - redis-server
         - /etc/redis/redis.conf
-        - --cluster-announce-ip
-        - $(ANNOUNCE_IP)
+        - /etc/redis/announce-ip.conf
         ports:
         - containerPort: 6379
           name: redis
@@ -31,16 +47,14 @@ spec:
         - name: config
           mountPath: /etc/redis/redis.conf
           subPath: redis.conf
+        - name: config
+          mountPath: /etc/redis/announce-ip.conf
+          subPath: announce-ip.conf
         env:
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: ANNOUNCE_IP
-          valueFrom:
-            configMapKeyRef:
-              name: redis-announce-ips
-              key: $(POD_NAME)
         resources:
           requests:
             memory: "512Mi"
@@ -50,6 +64,13 @@ spec:
             cpu: "1000m"
       volumes:
       - name: config
+        emptyDir: {}
+      - name: podname
+        downwardAPI:
+          items:
+          - path: name
+            fieldRef:
+              fieldPath: metadata.name
+      - name: announce-ips
         configMap:
-          name: redis-config
-  volumeClaimTemplates: []
+          name: redis-announce-ips
