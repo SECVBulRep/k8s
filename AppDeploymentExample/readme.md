@@ -2,7 +2,6 @@
 docker build -t secvbulrep/api_weather:latest .
 docker push secvbulrep/api_weather:latest
 
-
 2) просмотр всех ingress   контроллеров
 kubectl get pods -n ingress-nginx -o wide
 
@@ -16,19 +15,9 @@ kubectl get pods -l app=api-weather
 
 5) проверка работы
 curl -H "Host: api-weather.local" http://api-weather.local:31519/weatherforecast
-
-
-6)  добавим секрет 
-kubectl apply -f postgres-secret.yaml
-
-
-7) пересобрат образ
-
-docker build -t secvbulrep/api_weather:latest .
-docker push secvbulrep/api_weather:latest
+curl.exe -H "Host: weather-proxy.local" http://weather-proxy.local/proxy-weather
 
 8)  логи
  kubectl logs -l app=api-weather 
 
 
- 9) Установка redis
