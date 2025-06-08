@@ -14,25 +14,14 @@ spec:
       labels:
         app: redis-cluster
     spec:
-      initContainers:
-      - name: config-init
-        image: busybox
-        command:
-        - sh
-        - -c
-        - |
-          cp /etc/config/redis.conf /etc/redis/redis.conf
-        volumeMounts:
-        - name: config-source
-          mountPath: /etc/config
-        - name: config
-          mountPath: /etc/redis
       containers:
       - name: redis
         image: redis:7.0
         args:
         - redis-server
         - /etc/redis/redis.conf
+        - --cluster-announce-ip
+        - $(ANNOUNCE_IP)
         ports:
         - containerPort: 6379
           name: redis
@@ -47,6 +36,11 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: ANNOUNCE_IP
+          valueFrom:
+            configMapKeyRef:
+              name: redis-announce-ips
+              key: $(POD_NAME)
         resources:
           requests:
             memory: "512Mi"
@@ -56,8 +50,6 @@ spec:
             cpu: "1000m"
       volumes:
       - name: config
-        emptyDir: {}
-      - name: config-source
         configMap:
-          name: redis-config-$(POD_NAME)
+          name: redis-config
   volumeClaimTemplates: []

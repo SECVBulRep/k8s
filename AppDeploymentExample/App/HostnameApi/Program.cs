@@ -20,7 +20,7 @@ public class Program
 
         var builder = WebApplication.CreateBuilder(args);
 
-        // Подключение Serilog к ASP.NET Core
+        /// Подключение Serilog к ASP.NET Core
         builder.Host.UseSerilog();
 
         // Конфигурация (включая appsettings.json)
