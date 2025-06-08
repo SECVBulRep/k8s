@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-0
+  name: redis-config-redis-cluster-0
   namespace: redis
 data:
   redis.conf: |
@@ -20,7 +20,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-1
+  name: redis-config-redis-cluster-1
   namespace: redis
 data:
   redis.conf: |
@@ -39,7 +39,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-2
+  name: redis-config-redis-cluster-2
   namespace: redis
 data:
   redis.conf: |
@@ -58,7 +58,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-3
+  name: redis-config-redis-cluster-3
   namespace: redis
 data:
   redis.conf: |
@@ -77,7 +77,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-4
+  name: redis-config-redis-cluster-4
   namespace: redis
 data:
   redis.conf: |
@@ -96,7 +96,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config-5
+  name: redis-config-redis-cluster-5
   namespace: redis
 data:
   redis.conf: |
