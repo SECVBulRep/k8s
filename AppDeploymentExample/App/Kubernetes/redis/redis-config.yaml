@@ -15,3 +15,4 @@ data:
     masterauth your-secure-password
     cluster-announce-port 6379
     cluster-announce-bus-port 16379
+    include /etc/redis/announce-ip.conf

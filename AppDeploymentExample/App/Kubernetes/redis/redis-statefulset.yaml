@@ -5,8 +5,7 @@ metadata:
   namespace: redis
 spec:
   serviceName: redis-cluster
-  replicas: 6
-  selector:
+  replicas:  - selector:
     matchLabels:
       app: redis-cluster
   template:
@@ -23,7 +22,7 @@ spec:
         - |
           POD_NAME=$(cat /etc/podname/name)
           ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
-          echo "--cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
+          echo "cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
         volumeMounts:
         - name: podname
           mountPath: /etc/podname
@@ -37,7 +36,6 @@ spec:
         args:
         - redis-server
         - /etc/redis/redis.conf
-        - /etc/redis/announce-ip.conf
         ports:
         - containerPort: 6379
           name: redis
@@ -74,3 +72,4 @@ spec:
       - name: announce-ips
         configMap:
           name: redis-announce-ips
+  volumeClaimTemplates: []
