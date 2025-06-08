@@ -5,7 +5,8 @@ metadata:
   namespace: redis
 spec:
   serviceName: redis-cluster
-  replicas:  - selector:
+  replicas: 6
+  selector:
     matchLabels:
       app: redis-cluster
   template:
