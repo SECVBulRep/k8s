@@ -1,17 +1,18 @@
+# metallb-apps-pool.yaml
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
-  name: redis-pool
+  name: apps-pool
   namespace: metallb-system
 spec:
   addresses:
-  - 172.16.29.110-172.16.29.115
+    - 172.16.29.116-172.16.29.117
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: redis-l2
+  name: apps-l2
   namespace: metallb-system
 spec:
   ipAddressPools:
-  - redis-pool
+    - apps-pool
