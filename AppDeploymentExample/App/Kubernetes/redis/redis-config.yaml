@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: redis-config
+  name: redis-config-0
   namespace: redis
 data:
   redis.conf: |
@@ -12,3 +12,102 @@ data:
     save ""
     protected-mode no
     requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.110
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-1
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    appendonly no
+    save ""
+    protected-mode no
+    requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.111
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-2
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    appendonly no
+    save ""
+    protected-mode no
+    requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.112
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-3
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    appendonly no
+    save ""
+    protected-mode no
+    requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.113
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-4
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    appendonly no
+    save ""
+    protected-mode no
+    requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.114
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config-5
+  namespace: redis
+data:
+  redis.conf: |
+    port 6379
+    cluster-enabled yes
+    cluster-config-file nodes.conf
+    appendonly no
+    save ""
+    protected-mode no
+    requirepass your-secure-password
+    masterauth your-secure-password
+    cluster-announce-ip 172.16.29.115
+    cluster-announce-port 6379
+    cluster-announce-bus-port 16379

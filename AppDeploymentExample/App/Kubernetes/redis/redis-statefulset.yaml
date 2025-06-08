@@ -18,6 +18,7 @@ spec:
       - name: redis
         image: redis:7.0
         args:
+        - redis-server
         - /etc/redis/redis.conf
         ports:
         - containerPort: 6379
@@ -28,6 +29,11 @@ spec:
         - name: config
           mountPath: /etc/redis/redis.conf
           subPath: redis.conf
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         resources:
           requests:
             memory: "512Mi"
@@ -38,5 +44,5 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: redis-config
-  volumeClaimTemplates: []  # Без PVC, данные в памяти
+          name: redis-config-$(POD_NAME)
+  volumeClaimTemplates: []
