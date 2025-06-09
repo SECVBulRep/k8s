@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  serviceName: rabbitmq
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.13-management
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        - containerPort: 4369
+          name: epmd
+        - containerPort: 25672
+          name: clustering
+        env:
+        - name: RABBITMQ_ERLANG_COOKIE
+          value: "JFKZVCBYEISEQILVZMSD"
+        - name: RABBITMQ_DEFAULT_USER
+          value: "app"
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: app-password
+        - name: RABBITMQ_DEFAULT_VHOST
+          value: "/"
+        volumeMounts:
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/rabbitmq.conf
+          subPath: rabbitmq.conf
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/enabled_plugins
+          subPath: enabled_plugins
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      - name: ha-policy
+        image: rabbitmq:3.13-management
+        command:
+        - sh
+        - -c
+        - |
+          sleep 30 && /etc/rabbitmq/ha-policy.sh
+        volumeMounts:
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq/ha-policy.sh
+          subPath: ha-policy.sh
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: "app"
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: app-password
+      volumes:
+      - name: rabbitmq-config
+        configMap:
+          name: rabbitmq-config
+      - name: rabbitmq-data
+        emptyDir: {}
+  volumeClaimTemplates: []

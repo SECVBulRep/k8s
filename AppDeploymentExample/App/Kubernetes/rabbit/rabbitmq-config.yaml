@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: rabbitmq
+data:
+  rabbitmq.conf: |
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+    cluster_formation.k8s.host = kubernetes.default
+    cluster_formation.k8s.address_type = hostname
+    cluster_formation.node_cleanup_interval = 10
+    cluster_formation.node_cleanup_only_log_warning = true
+    cluster_name = rabbitmq-cluster
+    loopback_users.guest = false
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_peer_discovery_k8s].
+  ha-policy.sh: |
+    #!/bin/bash
+    rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}'
