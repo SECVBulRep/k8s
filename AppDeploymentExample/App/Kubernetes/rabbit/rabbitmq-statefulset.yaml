@@ -14,6 +14,7 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      serviceAccountName: rabbitmq
       containers:
       - name: rabbitmq
         image: rabbitmq:3.13-management
@@ -57,7 +58,7 @@ spec:
       - name: ha-policy
         image: rabbitmq:3.13-management
         command:
-        - sh
+        - /bin/bash
         - -c
         - |
           sleep 30 && /etc/rabbitmq/ha-policy.sh
@@ -79,4 +80,3 @@ spec:
           name: rabbitmq-config
       - name: rabbitmq-data
         emptyDir: {}
-  volumeClaimTemplates: []

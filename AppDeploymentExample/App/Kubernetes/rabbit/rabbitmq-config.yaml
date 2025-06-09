@@ -8,8 +8,8 @@ data:
     cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
     cluster_formation.k8s.host = kubernetes.default
     cluster_formation.k8s.address_type = hostname
-    cluster_formation.node_cleanup_interval = 10
-    cluster_formation.node_cleanup_only_log_warning = true
+    cluster_formation.node_cleanup.interval = 10
+    cluster_formation.node_cleanup.only_log_warning = true
     cluster_name = rabbitmq-cluster
     loopback_users.guest = false
   enabled_plugins: |
