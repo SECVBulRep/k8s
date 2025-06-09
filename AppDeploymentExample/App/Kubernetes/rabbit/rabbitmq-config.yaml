@@ -14,6 +14,3 @@ data:
     loopback_users.guest = false
   enabled_plugins: |
     [rabbitmq_management,rabbitmq_peer_discovery_k8s].
-  ha-policy.sh: |
-    #!/bin/bash
-    rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}'

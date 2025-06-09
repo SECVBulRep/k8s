@@ -61,11 +61,7 @@ spec:
         - /bin/bash
         - -c
         - |
-          sleep 30 && /etc/rabbitmq/ha-policy.sh
-        volumeMounts:
-        - name: rabbitmq-config
-          mountPath: /etc/rabbitmq/ha-policy.sh
-          subPath: ha-policy.sh
+          sleep 30 && rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}'
         env:
         - name: RABBITMQ_DEFAULT_USER
           value: "app"
