@@ -23,6 +23,7 @@ spec:
         - |
           POD_NAME=$(cat /etc/podname/name)
           ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
+          if [ -z "$ANNOUNCE_IP" ]; then exit 1; fi
           echo "cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
         volumeMounts:
         - name: podname
@@ -31,6 +32,18 @@ spec:
           mountPath: /etc/announce-ips
         - name: announce-ip
           mountPath: /etc/redis
+      - name: redis-cluster-init
+        image: redis:7.0
+        command:
+        - sh
+        - -c
+        - |
+          redis-cli -a your-secure-password --cluster check 172.16.29.110:6379 || \
+          redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 0
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/redis.conf
+          subPath: redis.conf
       containers:
       - name: redis
         image: redis:7.0
@@ -49,6 +62,8 @@ spec:
         - name: announce-ip
           mountPath: /etc/redis/announce-ip.conf
           subPath: announce-ip.conf
+        - name: redis-data
+          mountPath: /data
         env:
         - name: POD_NAME
           valueFrom:
@@ -76,4 +91,11 @@ spec:
       - name: redis-config
         configMap:
           name: redis-config
-  volumeClaimTemplates: []
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi

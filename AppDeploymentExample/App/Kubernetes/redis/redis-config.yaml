@@ -8,11 +8,13 @@ data:
     port 6379
     cluster-enabled yes
     cluster-config-file nodes.conf
-    appendonly no
+    appendonly yes
+    dir /data
     save ""
     protected-mode no
     requirepass your-secure-password
     masterauth your-secure-password
     cluster-announce-port 6379
     cluster-announce-bus-port 16379
+    cluster-node-timeout 15000
     include /etc/redis/announce-ip.conf
