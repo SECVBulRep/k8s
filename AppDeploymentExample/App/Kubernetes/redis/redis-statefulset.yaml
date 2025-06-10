@@ -14,15 +14,6 @@ spec:
       labels:
         app: redis-cluster
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  app: redis-cluster
-              topologyKey: kubernetes.io/hostname
       initContainers:
       - name: set-announce-ip
         image: busybox
@@ -50,7 +41,7 @@ spec:
           for i in {1..30}; do
             if redis-cli -a your-secure-password ping -h 172.16.29.110 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.111 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.112 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.113 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.114 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.115 -p 6379; then
               if ! redis-cli -a your-secure-password --cluster check 172.16.29.110:6379 | grep -q "All 16384 slots covered"; then
-                redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 2 --cluster-yes
+                redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 0 --cluster-yes
               fi
               exit 0
             fi
@@ -79,8 +70,6 @@ spec:
         - name: announce-ip
           mountPath: /etc/redis/announce-ip.conf
           subPath: announce-ip.conf
-        - name: redis-data
-          mountPath: /data
         env:
         - name: POD_NAME
           valueFrom:
@@ -108,12 +97,4 @@ spec:
       - name: redis-config
         configMap:
           name: redis-config
-  volumeClaimTemplates:
-  - metadata:
-      name: redis-data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: local-storage
-      resources:
-        requests:
-          storage: 1Gi
+  volumeClaimTemplates: []
