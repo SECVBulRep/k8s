@@ -15,19 +15,7 @@ spec:
         app: rabbitmq
     spec:
       serviceAccountName: rabbitmq
-      initContainers:
-      - name: wait-for-previous
-        image: busybox
-        command:
-        - /bin/sh
-        - -c
-        - |
-          if [ "$HOSTNAME" != "rabbitmq-0" ]; then
-            until ping -c 1 rabbitmq-$(( ${HOSTNAME##*-} - 1 )).rabbitmq.rabbitmq.svc.cluster.local; do
-              echo "Waiting for rabbitmq-$(( ${HOSTNAME##*-} - 1 )) to be ready...";
-              sleep 5;
-            done;
-          fi
+      terminationGracePeriodSeconds: 10
       containers:
       - name: rabbitmq
         image: rabbitmq:3.13-management
@@ -41,65 +29,48 @@ spec:
         - containerPort: 25672
           name: clustering
         env:
-        - name: RABBITMQ_ERLANG_COOKIE
-          value: "JFKZVCBYEISEQILVZMSD"
         - name: RABBITMQ_DEFAULT_USER
           value: "app"
         - name: RABBITMQ_DEFAULT_PASS
+          value: "AppPassRabbitMQ"
+        - name: RABBITMQ_ERLANG_COOKIE
+          value: "JFKZVCBYEISEQILVZMSD"
+        - name: RABBITMQ_NODENAME
+          value: "rabbit@$(POD_NAME).rabbitmq.rabbitmq.svc.cluster.local"
+        - name: RABBITMQ_USE_LONGNAME
+          value: "true"
+        - name: RABBITMQ_CONFIG_FILE
+          value: "/etc/rabbitmq/rabbitmq.conf"
+        - name: POD_NAME
           valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secret
-              key: app-password
-        - name: RABBITMQ_DEFAULT_VHOST
-          value: "/"
-        - name: K8S_SERVICE_NAME
-          value: "rabbitmq"
-        - name: K8S_ADDRESS_TYPE
-          value: "hostname"
-        - name: K8S_HOST
-          value: "kubernetes.default.svc.cluster.local"
-        - name: K8S_HOSTNAME_SUFFIX
-          value: ".rabbitmq.rabbitmq.svc.cluster.local"
+            fieldRef:
+              fieldPath: metadata.name
         volumeMounts:
-        - name: rabbitmq-config
-          mountPath: /etc/rabbitmq/rabbitmq.conf
-          subPath: rabbitmq.conf
-        - name: rabbitmq-config
-          mountPath: /etc/rabbitmq/enabled_plugins
-          subPath: enabled_plugins
         - name: rabbitmq-data
           mountPath: /var/lib/rabbitmq
+        - name: rabbitmq-config
+          mountPath: /etc/rabbitmq
         - name: kube-api-access
           mountPath: /var/run/secrets/kubernetes.io/serviceaccount
           readOnly: true
       - name: ha-policy
         image: rabbitmq:3.13-management
         command:
-        - /bin/bash
+        - /bin/sh
         - -c
         - |
-          for i in {1..10}; do
-            sleep 30
-            if rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}'; then
-              echo "HA policy set successfully"
-              tail -f /dev/null
-              break
-            else
-              echo "Failed to set HA policy, retrying ($i/10)"
-            fi
+          for i in $(seq 1 30); do
+            rabbitmqctl set_policy --priority 0 --apply-to queues ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}' && echo "HA policy set successfully" && exit 0
+            echo "Retrying HA policy setup ($i/30)"
+            sleep 5
           done
-          echo "Failed to set HA policy after 10 attempts"
+          echo "Failed to set HA policy"
           exit 1
         env:
-        - name: RABBITMQ_ERLANG_COOKIE
-          value: "JFKZVCBYEISEQILVZMSD"
         - name: RABBITMQ_DEFAULT_USER
           value: "app"
         - name: RABBITMQ_DEFAULT_PASS
-          valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secret
-              key: app-password
+          value: "AppPassRabbitMQ"
         volumeMounts:
         - name: kube-api-access
           mountPath: /var/run/secrets/kubernetes.io/serviceaccount
@@ -108,15 +79,13 @@ spec:
       - name: rabbitmq-config
         configMap:
           name: rabbitmq-config
-      - name: rabbitmq-data
-        emptyDir: {}
       - name: kube-api-access
         projected:
           sources:
           - serviceAccountToken:
               path: token
               expirationSeconds: 3600
-              audience: kubernetes.default.svc.cluster.local
+              audience: https://kubernetes.default.svc.cluster.local
           - configMap:
               name: kube-root-ca.crt
               items:
@@ -127,3 +96,11 @@ spec:
               - path: namespace
                 fieldRef:
                   fieldPath: metadata.namespace
+  volumeClaimTemplates:
+  - metadata:
+      name: rabbitmq-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
