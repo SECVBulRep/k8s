@@ -11,11 +11,14 @@ metadata:
   namespace: rabbitmq
 rules:
 - apiGroups: [""]
-  resources: ["endpoints", "pods", "services", "nodes"]
+  resources: ["endpoints", "pods", "services"]
   verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list", "create", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
