@@ -45,3 +45,13 @@ spec:
     ports:
     - protocol: UDP
       port: 53
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 4369
+    - protocol: TCP
+      port: 25672
