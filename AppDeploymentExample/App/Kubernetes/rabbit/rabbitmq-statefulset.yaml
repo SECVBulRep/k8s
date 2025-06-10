@@ -15,6 +15,19 @@ spec:
         app: rabbitmq
     spec:
       serviceAccountName: rabbitmq
+      initContainers:
+      - name: wait-for-previous
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if [ "$HOSTNAME" != "rabbitmq-0" ]; then
+            until ping -c 1 rabbitmq-$(( ${HOSTNAME##*-} - 1 )).rabbitmq.rabbitmq.svc.cluster.local; do
+              echo "Waiting for rabbitmq-$(( ${HOSTNAME##*-} - 1 )) to be ready...";
+              sleep 5;
+            done;
+          fi
       containers:
       - name: rabbitmq
         image: rabbitmq:3.13-management
