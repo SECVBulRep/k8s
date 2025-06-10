@@ -49,6 +49,8 @@ spec:
         - name: announce-ip
           mountPath: /etc/redis/announce-ip.conf
           subPath: announce-ip.conf
+        - name: redis-data
+          mountPath: /data
         env:
         - name: POD_NAME
           valueFrom:
@@ -76,4 +78,11 @@ spec:
       - name: redis-config
         configMap:
           name: redis-config
-  volumeClaimTemplates: []
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 1Gi
