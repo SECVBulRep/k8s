@@ -108,7 +108,7 @@ spec:
               - key: ca.crt
                 path: ca.crt
           - downwardAPI:
-            items:
-            - path: namespace
-              fieldRef:
-                fieldPath: metadata.namespace
+              items:
+              - path: namespace
+                fieldRef:
+                  fieldPath: metadata.namespace
