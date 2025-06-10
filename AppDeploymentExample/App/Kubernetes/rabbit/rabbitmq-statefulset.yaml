@@ -52,6 +52,14 @@ spec:
               key: app-password
         - name: RABBITMQ_DEFAULT_VHOST
           value: "/"
+        - name: K8S_SERVICE_NAME
+          value: "rabbitmq"
+        - name: K8S_ADDRESS_TYPE
+          value: "hostname"
+        - name: K8S_HOST
+          value: "kubernetes.default.svc.cluster.local"
+        - name: K8S_HOSTNAME_SUFFIX
+          value: ".rabbitmq.rabbitmq.svc.cluster.local"
         volumeMounts:
         - name: rabbitmq-config
           mountPath: /etc/rabbitmq/rabbitmq.conf
@@ -61,20 +69,16 @@ spec:
           subPath: enabled_plugins
         - name: rabbitmq-data
           mountPath: /var/lib/rabbitmq
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
+        - name: kube-api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
       - name: ha-policy
         image: rabbitmq:3.13-management
         command:
         - /bin/bash
         - -c
         - |
-          sleep 30 && rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}' && tail -f /dev/null
+          sleep 10 && rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}' && tail -f /dev/null
         env:
         - name: RABBITMQ_ERLANG_COOKIE
           value: "JFKZVCBYEISEQILVZMSD"
@@ -91,3 +95,20 @@ spec:
           name: rabbitmq-config
       - name: rabbitmq-data
         emptyDir: {}
+      - name: kube-api-access
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+              expirationSeconds: 3600
+              audience: kubernetes.default.svc.cluster.local
+          - configMap:
+              name: kube-root-ca.crt
+              items:
+              - key: ca.crt
+                path: ca.crt
+          - downwardAPI:
+              items:
+              - path: namespace
+                fieldRef:
+                  fieldPath: metadata.namespace
