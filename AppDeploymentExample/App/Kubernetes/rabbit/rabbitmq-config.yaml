@@ -12,8 +12,8 @@ data:
     cluster_formation.k8s.hostname_suffix = .rabbitmq.rabbitmq.svc.cluster.local
     cluster_formation.node_cleanup.interval = 30
     cluster_formation.node_cleanup.only_log_warning = true
-    cluster_formation.discovery_retry_count = 10
-    cluster_formation.discovery_retry_delay = 5000
+    cluster_formation.discovery_retry_limit = 10
+    cluster_formation.discovery_retry_interval = 5000
     cluster_name = rabbitmq-cluster
     loopback_users.guest = false
     log.console.level = debug
