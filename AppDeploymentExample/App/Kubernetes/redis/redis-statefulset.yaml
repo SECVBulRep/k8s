@@ -22,8 +22,7 @@ spec:
         - -c
         - |
           POD_NAME=$(cat /etc/podname/name)
-          ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
-          if [ -z "$ANNOUNCE_IP" ]; then exit 1; fi
+          ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ' || echo "")
           echo "cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
         volumeMounts:
         - name: podname
@@ -38,7 +37,7 @@ spec:
         - sh
         - -c
         - |
-          for i in {1..30}; do
+          for i in {1..60}; do
             if redis-cli -a your-secure-password ping -h 172.16.29.110 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.111 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.112 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.113 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.114 -p 6379 && redis-cli -a your-secure-password ping -h 172.16.29.115 -p 6379; then
               if ! redis-cli -a your-secure-password --cluster check 172.16.29.110:6379 | grep -q "All 16384 slots covered"; then
                 redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 0 --cluster-yes
