@@ -78,7 +78,18 @@ spec:
         - /bin/bash
         - -c
         - |
-          sleep 10 && rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}' && tail -f /dev/null
+          for i in {1..10}; do
+            sleep 30
+            if rabbitmqctl set_policy ha-all ".*" '{"ha-mode":"all","ha-sync-mode":"automatic"}'; then
+              echo "HA policy set successfully"
+              tail -f /dev/null
+              break
+            else
+              echo "Failed to set HA policy, retrying ($i/10)"
+            fi
+          done
+          echo "Failed to set HA policy after 10 attempts"
+          exit 1
         env:
         - name: RABBITMQ_ERLANG_COOKIE
           value: "JFKZVCBYEISEQILVZMSD"
@@ -89,6 +100,10 @@ spec:
             secretKeyRef:
               name: rabbitmq-secret
               key: app-password
+        volumeMounts:
+        - name: kube-api-access
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
       volumes:
       - name: rabbitmq-config
         configMap:
