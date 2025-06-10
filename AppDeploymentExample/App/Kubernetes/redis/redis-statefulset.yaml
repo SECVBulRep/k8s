@@ -14,6 +14,15 @@ spec:
       labels:
         app: redis-cluster
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: redis-cluster
+              topologyKey: kubernetes.io/hostname
       initContainers:
       - name: set-announce-ip
         image: busybox
@@ -38,8 +47,9 @@ spec:
         - sh
         - -c
         - |
-          redis-cli -a your-secure-password --cluster check 172.16.29.110:6379 || \
-          redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 0
+          if ! redis-cli -a your-secure-password --cluster check 172.16.29.110:6379 | grep -q "All 16384 slots covered"; then
+            redis-cli -a your-secure-password --cluster create 172.16.29.110:6379 172.16.29.111:6379 172.16.29.112:6379 172.16.29.113:6379 172.16.29.114:6379 172.16.29.115:6379 --cluster-replicas 2 --cluster-yes
+          fi
         volumeMounts:
         - name: redis-config
           mountPath: /etc/redis/redis.conf
