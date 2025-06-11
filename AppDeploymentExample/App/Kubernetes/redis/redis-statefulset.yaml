@@ -1,4 +1,3 @@
-# redis-statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -15,85 +14,100 @@ spec:
       labels:
         app: redis-cluster
     spec:
+      terminationGracePeriodSeconds: 10  # <== добавлено: ускоренное завершение подов
       affinity:
         podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
+          requiredDuringSchedulingIgnoredDuringExecution:  # <== изменено: строгая антиаффинность
+            - labelSelector:
                 matchLabels:
                   app: redis-cluster
               topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:  # <== добавлено: равномерное распределение pod'ов по нодам
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: redis-cluster
+      tolerations:  # <== добавлено: автоудаление pod'ов с NotReady и Unreachable нод
+        - key: "node.kubernetes.io/unreachable"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 20
       initContainers:
-      - name: set-announce-ip
-        image: busybox
-        command:
-        - sh
-        - -c
-        - |
-          POD_NAME=$(cat /etc/podname/name)
-          ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
-          echo "cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
-        volumeMounts:
-        - name: podname
-          mountPath: /etc/podname
-        - name: announce-ips
-          mountPath: /etc/announce-ips
-        - name: announce-ip
-          mountPath: /etc/redis
+        - name: set-announce-ip
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              POD_NAME=$(cat /etc/podname/name)
+              ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
+              echo "cluster-announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
+          volumeMounts:
+            - name: podname
+              mountPath: /etc/podname
+            - name: announce-ips
+              mountPath: /etc/announce-ips
+            - name: announce-ip
+              mountPath: /etc/redis
       containers:
-      - name: redis
-        image: redis:7.0
-        args:
-        - redis-server
-        - /etc/redis/redis.conf
-        ports:
-        - containerPort: 6379
-          name: redis
-        - containerPort: 16379
-          name: cluster
-        volumeMounts:
-        - name: redis-config
-          mountPath: /etc/redis/redis.conf
-          subPath: redis.conf
+        - name: redis
+          image: redis:7.0
+          args:
+            - redis-server
+            - /etc/redis/redis.conf
+          ports:
+            - containerPort: 6379
+              name: redis
+            - containerPort: 16379
+              name: cluster
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis/redis.conf
+              subPath: redis.conf
+            - name: announce-ip
+              mountPath: /etc/redis/announce-ip.conf
+              subPath: announce-ip.conf
+            - name: redis-data
+              mountPath: /data
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
         - name: announce-ip
-          mountPath: /etc/redis/announce-ip.conf
-          subPath: announce-ip.conf
-        - name: redis-data
-          mountPath: /data
-        env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
+          emptyDir: {}
+        - name: podname
+          downwardAPI:
+            items:
+              - path: name
+                fieldRef:
+                  fieldPath: metadata.name
+        - name: announce-ips
+          configMap:
+            name: redis-announce-ips
+        - name: redis-config
+          configMap:
+            name: redis-config
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn-custom
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
-      volumes:
-      - name: announce-ip
-        emptyDir: {}
-      - name: podname
-        downwardAPI:
-          items:
-          - path: name
-            fieldRef:
-              fieldPath: metadata.name
-      - name: announce-ips
-        configMap:
-          name: redis-announce-ips
-      - name: redis-config
-        configMap:
-          name: redis-config
-  volumeClaimTemplates:
-  - metadata:
-      name: redis-data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: longhorn-custom
-      resources:
-        requests:
-          storage: 1Gi
+            storage: 1Gi
