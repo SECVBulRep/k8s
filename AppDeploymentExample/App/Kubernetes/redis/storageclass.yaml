@@ -8,7 +8,7 @@ volumeBindingMode: WaitForFirstConsumer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: longhorn
+  name: longhorn-custom
 provisioner: driver.longhorn.io
 reclaimPolicy: Retain
 parameters:
