@@ -14,5 +14,9 @@ reclaimPolicy: Retain
 parameters:
   numberOfReplicas: "2"
   staleReplicaTimeout: "30"
+  fsType: "ext4"
+  dataLocality: "disabled"
+  disableRevisionCounter: "true"
+  dataEngine: "v1"
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
