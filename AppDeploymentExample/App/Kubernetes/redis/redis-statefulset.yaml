@@ -14,22 +14,24 @@ spec:
       labels:
         app: redis-cluster
     spec:
-      terminationGracePeriodSeconds: 10  # <== добавлено: ускоренное завершение подов
+      terminationGracePeriodSeconds: 10
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:  # <== изменено: строгая антиаффинность
-            - labelSelector:
-                matchLabels:
-                  app: redis-cluster
-              topologyKey: kubernetes.io/hostname
-      topologySpreadConstraints:  # <== добавлено: равномерное распределение pod'ов по нодам
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: redis-cluster
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               app: redis-cluster
-      tolerations:  # <== добавлено: автоудаление pod'ов с NotReady и Unreachable нод
+      tolerations:
         - key: "node.kubernetes.io/unreachable"
           operator: "Exists"
           effect: "NoExecute"
@@ -82,8 +84,8 @@ spec:
                   fieldPath: metadata.name
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "256Mi"
+              cpu: "250m"
             limits:
               memory: "1Gi"
               cpu: "1000m"
