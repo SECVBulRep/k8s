@@ -15,6 +15,15 @@ spec:
       labels:
         app: redis-cluster
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: redis-cluster
+              topologyKey: kubernetes.io/hostname
       initContainers:
       - name: set-announce-ip
         image: busybox
@@ -84,7 +93,7 @@ spec:
       name: redis-data
     spec:
       accessModes: ["ReadWriteOnce"]
-      storageClassName: local-storage
+      storageClassName: longhorn-custom
       resources:
         requests:
           storage: 1Gi
