@@ -13,6 +13,9 @@ spec:
     metadata:
       labels:
         app: redis-cluster
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+        longhorn.io/volume-eviction-policy: "delete"
     spec:
       terminationGracePeriodSeconds: 10
       affinity:
