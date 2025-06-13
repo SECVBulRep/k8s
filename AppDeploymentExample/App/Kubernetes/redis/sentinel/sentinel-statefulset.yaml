@@ -54,36 +54,31 @@ spec:
                 echo "Error: No IP found for $POD_NAME"
                 exit 1
               fi
-              echo "sentinel announce-ip $ANNOUNCE_IP" > /tmp/sentinel/announce-ip.conf
+              cp /etc/redis-config/sentinel.conf /etc/redis/sentinel.conf
+              echo "sentinel announce-ip $ANNOUNCE_IP" >> /etc/redis/sentinel.conf
           volumeMounts:
             - name: podname
               mountPath: /etc/podname
             - name: announce-ips
               mountPath: /etc/announce-ips
+            - name: sentinel-config
+              mountPath: /etc/redis-config
             - name: sentinel-conf
-              mountPath: /tmp/sentinel
+              mountPath: /etc/redis
       containers:
         - name: sentinel
           image: redis:7.0
           args:
             - redis-sentinel
             - /etc/redis/sentinel.conf
-            - --include
-            - /etc/redis/announce-ip.conf
           ports:
             - containerPort: 26379
               name: sentinel
           volumeMounts:
-            - name: sentinel-config
-              mountPath: /etc/redis/sentinel.conf
-              subPath: sentinel.conf
             - name: sentinel-conf
-              mountPath: /etc/redis/announce-ip.conf
-              subPath: announce-ip.conf
+              mountPath: /etc/redis
             - name: sentinel-data
               mountPath: /data
-            - name: sentinel-conf
-              mountPath: /tmp/sentinel
           resources:
             requests:
               memory: "128Mi"
