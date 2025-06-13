@@ -50,7 +50,11 @@ spec:
             - |
               POD_NAME=$(cat /etc/podname/name)
               ANNOUNCE_IP=$(grep "^$POD_NAME:" /etc/announce-ips/data | cut -d':' -f2 | tr -d ' ')
-              echo "sentinel announce-ip $ANNOUNCE_IP" >> /etc/redis/sentinel.conf
+              if [ -z "$ANNOUNCE_IP" ]; then
+                echo "Error: No IP found for $POD_NAME"
+                exit 1
+              fi
+              echo "sentinel announce-ip $ANNOUNCE_IP" > /etc/redis/announce-ip.conf
           volumeMounts:
             - name: podname
               mountPath: /etc/podname
@@ -64,6 +68,8 @@ spec:
           args:
             - redis-sentinel
             - /etc/redis/sentinel.conf
+            - --include
+            - /etc/redis/announce-ip.conf
           ports:
             - containerPort: 26379
               name: sentinel
@@ -71,6 +77,9 @@ spec:
             - name: sentinel-config
               mountPath: /etc/redis/sentinel.conf
               subPath: sentinel.conf
+            - name: sentinel-config
+              mountPath: /etc/redis/announce-ip.conf
+              subPath: announce-ip.conf
             - name: sentinel-data
               mountPath: /data
           resources:
@@ -91,8 +100,7 @@ spec:
           configMap:
             name: redis-announce-ips
         - name: sentinel-config
-          configMap:
-            name: redis-config
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: sentinel-data
