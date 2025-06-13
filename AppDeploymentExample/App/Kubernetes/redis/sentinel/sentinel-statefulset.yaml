@@ -82,6 +82,8 @@ spec:
               subPath: announce-ip.conf
             - name: sentinel-data
               mountPath: /data
+            - name: sentinel-conf
+              mountPath: /tmp/sentinel
           resources:
             requests:
               memory: "128Mi"
@@ -100,6 +102,8 @@ spec:
           configMap:
             name: redis-announce-ips
         - name: sentinel-config
+          emptyDir: {}
+        - name: sentinel-conf
           emptyDir: {}
   volumeClaimTemplates:
     - metadata:
