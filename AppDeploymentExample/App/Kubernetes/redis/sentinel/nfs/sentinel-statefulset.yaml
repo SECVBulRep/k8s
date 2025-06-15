@@ -14,7 +14,7 @@ spec:
       labels:
         app: sentinel
     spec:
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 5
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -33,11 +33,11 @@ spec:
         - key: "node.kubernetes.io/unreachable"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 10
+          tolerationSeconds: 5
         - key: "node.kubernetes.io/not-ready"
           operator: "Exists"
           effect: "NoExecute"
-          tolerationSeconds: 10
+          tolerationSeconds: 5
       initContainers:
         - name: init-sentinel-config
           image: busybox
