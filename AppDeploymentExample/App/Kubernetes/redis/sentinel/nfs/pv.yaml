@@ -4,6 +4,7 @@ metadata:
   name: redis-nfs-pv-k8s01
   labels:
     node: k8s01
+    type: redis
 spec:
   capacity:
     storage: 1Gi
@@ -12,7 +13,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.100
+    server: 172.16.29.101
     path: /mnt/nfs/redis
 ---
 apiVersion: v1
@@ -21,6 +22,7 @@ metadata:
   name: redis-nfs-pv-k8s02
   labels:
     node: k8s02
+    type: redis
 spec:
   capacity:
     storage: 1Gi
@@ -38,6 +40,7 @@ metadata:
   name: redis-nfs-pv-k8s03
   labels:
     node: k8s03
+    type: redis
 spec:
   capacity:
     storage: 1Gi
@@ -55,6 +58,7 @@ metadata:
   name: sentinel-nfs-pv-k8s01
   labels:
     node: k8s01
+    type: sentinel
 spec:
   capacity:
     storage: 1Gi
@@ -63,7 +67,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.100
+    server: 172.16.29.101
     path: /mnt/nfs/sentinel
 ---
 apiVersion: v1
@@ -72,6 +76,7 @@ metadata:
   name: sentinel-nfs-pv-k8s02
   labels:
     node: k8s02
+    type: sentinel
 spec:
   capacity:
     storage: 1Gi
@@ -89,6 +94,7 @@ metadata:
   name: sentinel-nfs-pv-k8s03
   labels:
     node: k8s03
+    type: sentinel
 spec:
   capacity:
     storage: 1Gi
