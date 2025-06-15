@@ -10,10 +10,6 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: nfs-storage
-  selector:
-    matchLabels:
-      node: k8s01
-      type: sentinel
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -27,10 +23,6 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: nfs-storage
-  selector:
-    matchLabels:
-      node: k8s02
-      type: sentinel
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -44,7 +36,3 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: nfs-storage
-  selector:
-    matchLabels:
-      node: k8s03
-      type: sentinel
