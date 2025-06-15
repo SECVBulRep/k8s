@@ -64,6 +64,12 @@ spec:
         - name: sentinel-config
           configMap:
             name: redis-config
-        - name: sentinel-data
-          persistentVolumeClaim:
-            claimName: sentinel-data-$(metadata.name)
+  volumeClaimTemplates:
+    - metadata:
+        name: sentinel-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: nfs-storage
+        resources:
+          requests:
+            storage: 1Gi

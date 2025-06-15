@@ -80,6 +80,12 @@ spec:
         - name: redis-config
           configMap:
             name: redis-config
-        - name: redis-data
-          persistentVolumeClaim:
-            claimName: redis-data-$(metadata.name)
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: nfs-storage
+        resources:
+          requests:
+            storage: 1Gi
