@@ -38,22 +38,6 @@ spec:
           operator: "Exists"
           effect: "NoExecute"
           tolerationSeconds: 10
-      initContainers:
-        - name: set-replica
-          image: redis:7.0
-          command:
-            - sh
-            - -c
-            - |
-              if [ "$POD_NAME" != "redis-0" ]; then
-                sleep 10
-                redis-cli -h 172.16.29.110 -p 6379 -a your-secure-password REPLICAOF 172.16.29.110 6379
-              fi
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
       containers:
         - name: redis
           image: redis:7.0

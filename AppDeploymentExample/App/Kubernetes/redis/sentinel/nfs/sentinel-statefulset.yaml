@@ -38,19 +38,29 @@ spec:
           operator: "Exists"
           effect: "NoExecute"
           tolerationSeconds: 10
+      initContainers:
+        - name: init-sentinel-config
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              cp /etc/redis-config/sentinel.conf /data/sentinel.conf
+          volumeMounts:
+            - name: sentinel-config
+              mountPath: /etc/redis-config
+            - name: sentinel-data
+              mountPath: /data
       containers:
         - name: sentinel
           image: redis:7.0
           args:
             - redis-sentinel
-            - /etc/redis/sentinel.conf
+            - /data/sentinel.conf
           ports:
             - containerPort: 26379
               name: sentinel
           volumeMounts:
-            - name: sentinel-config
-              mountPath: /etc/redis/sentinel.conf
-              subPath: sentinel.conf
             - name: sentinel-data
               mountPath: /data
           resources:
