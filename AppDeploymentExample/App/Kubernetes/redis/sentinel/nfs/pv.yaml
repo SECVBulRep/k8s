@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-nfs-pv-k8s01
+  labels:
+    node: k8s01
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.100
+    path: /mnt/nfs/redis
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-nfs-pv-k8s02
+  labels:
+    node: k8s02
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.102
+    path: /mnt/nfs/redis
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-nfs-pv-k8s03
+  labels:
+    node: k8s03
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.103
+    path: /mnt/nfs/redis
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sentinel-nfs-pv-k8s01
+  labels:
+    node: k8s01
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.100
+    path: /mnt/nfs/sentinel
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sentinel-nfs-pv-k8s02
+  labels:
+    node: k8s02
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.102
+    path: /mnt/nfs/sentinel
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sentinel-nfs-pv-k8s03
+  labels:
+    node: k8s03
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    server: 172.16.29.103
+    path: /mnt/nfs/sentinel

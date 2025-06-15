@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-announce-ips
+  namespace: redis
+data:
+  data: |
+    redis-0:172.16.29.110
+    redis-1:172.16.29.111
+    redis-2:172.16.29.112
+    sentinel-0:172.16.29.113
+    sentinel-1:172.16.29.114
+    sentinel-2:172.16.29.115
