@@ -23,23 +23,21 @@ spec:
                     operator: In
                     values: [redis-sentinel]
               topologyKey: "kubernetes.io/hostname"
-      initContainers:
-        - name: wait-for-redis
-          image: appropriate/curl
+      containers:
+        - name: sentinel
+          image: redis:7.2
           command:
             - sh
             - -c
             - |
-              echo "Ожидаем DNS..."
+              echo "Ожидание DNS внутри основного контейнера..."
               until nslookup redis-0.redis-headless.redis.svc.cluster.local; do sleep 2; done
               echo "DNS найден. Ждём TCP порт..."
               until nc -z redis-0.redis-headless.redis.svc.cluster.local 6379; do sleep 2; done
-              echo "redis-0 доступен. Ждём дополнительно 5 секунд для стабильности DNS..."
+              echo "redis-0 доступен. Ждём дополнительно 5 секунд..."
               sleep 5
-      containers:
-        - name: sentinel
-          image: redis:7.2
-          command: ["redis-sentinel", "/etc/sentinel/sentinel.conf"]
+              echo "Запуск redis-sentinel..."
+              exec redis-sentinel /etc/sentinel/sentinel.conf
           ports:
             - containerPort: 26379
           volumeMounts:
