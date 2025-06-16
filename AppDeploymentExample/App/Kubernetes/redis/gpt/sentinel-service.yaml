@@ -5,9 +5,8 @@ metadata:
   namespace: redis
 spec:
   clusterIP: None
+  ports:
+    - port: 26379
+      name: sentinel
   selector:
     app: redis-sentinel
-  ports:
-    - name: sentinel
-      port: 26379
-      targetPort: 26379

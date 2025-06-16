@@ -6,12 +6,8 @@ metadata:
 data:
   sentinel.conf: |
     port 26379
-    bind 0.0.0.0
-    daemonize no
-    protected-mode no
-
-    # Указываем имя мастера, IP пода будет резолвиться через DNS
+    dir /tmp
     sentinel monitor mymaster redis-0.redis-headless.redis.svc.cluster.local 6379 2
     sentinel down-after-milliseconds mymaster 5000
-    sentinel failover-timeout mymaster 10000
     sentinel parallel-syncs mymaster 1
+    sentinel failover-timeout mymaster 10000
