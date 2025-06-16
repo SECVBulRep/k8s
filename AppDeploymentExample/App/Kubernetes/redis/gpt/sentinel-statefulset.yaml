@@ -4,11 +4,11 @@ metadata:
   name: redis-sentinel
   namespace: redis
 spec:
+  serviceName: redis-sentinel
   replicas: 3
   selector:
     matchLabels:
       app: redis-sentinel
-  serviceName: redis-sentinel
   template:
     metadata:
       labels:
@@ -18,27 +18,32 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - redis-sentinel
-            topologyKey: "kubernetes.io/hostname"
-      containers:
-        - name: sentinel
-          image: redis:7.2
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - redis-sentinel
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.35
           command:
             - sh
             - -c
             - |
-              echo "Waiting for DNS to resolve redis-0...";
-              until nslookup redis-0.redis-headless.redis.svc.cluster.local; do
-                echo "Still waiting...";
-                sleep 2;
+              echo "Waiting for redis-0.redis-headless.redis.svc.cluster.local to resolve..."
+              until getent hosts redis-0.redis-headless.redis.svc.cluster.local; do
+                echo "Still waiting..."
+                sleep 2
               done
-              echo "DNS resolved. Starting redis-sentinel...";
-              redis-sentinel /etc/sentinel/sentinel.conf
+              echo "DNS resolved."
+      containers:
+        - name: sentinel
+          image: redis:7.2
+          command:
+            - redis-sentinel
+            - /etc/sentinel/sentinel.conf
           ports:
             - containerPort: 26379
           volumeMounts:
