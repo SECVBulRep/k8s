@@ -1,43 +1,41 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis
+  name: redis-sentinel
   namespace: redis
 spec:
-  serviceName: redis-headless
+  serviceName: redis-sentinel
   replicas: 3
   selector:
     matchLabels:
-      app: redis
+      app: redis-sentinel
   template:
     metadata:
       labels:
-        app: redis
+        app: redis-sentinel
     spec:
+      terminationGracePeriodSeconds: 10
+      dnsPolicy: ClusterFirst
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values: [redis]
+                matchLabels:
+                  app: redis-sentinel
               topologyKey: "kubernetes.io/hostname"
       containers:
-        - name: redis
+        - name: sentinel
           image: redis:7.2
-          command: ["redis-server"]
-          args: ["/etc/redis/redis.conf"]
+          args:
+            - "redis-server"
+            - "/etc/sentinel/sentinel.conf"
+            - "--sentinel"
           ports:
-            - containerPort: 6379
+            - containerPort: 26379
           volumeMounts:
-            - name: config
-              mountPath: /etc/redis
-            - name: data
-              mountPath: /data
+            - name: sentinel-config
+              mountPath: /etc/sentinel
       volumes:
-        - name: config
+        - name: sentinel-config
           configMap:
-            name: redis-config
-        - name: data
-          emptyDir: {}
+            name: sentinel-config
