@@ -44,12 +44,11 @@ spec:
           command: ["redis-sentinel", "/etc/sentinel/sentinel.conf"]
           ports:
             - containerPort: 26379
-              name: sentinel
           volumeMounts:
-            - name: config
+            - name: sentinel-config
               mountPath: /etc/sentinel/sentinel.conf
               subPath: sentinel.conf
       volumes:
-        - name: config
+        - name: sentinel-config
           configMap:
             name: sentinel-config
