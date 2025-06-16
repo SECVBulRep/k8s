@@ -1,9 +1,10 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: redis-sentinel
   namespace: redis
 spec:
+  serviceName: redis-sentinel
   replicas: 3
   selector:
     matchLabels:
@@ -13,29 +14,29 @@ spec:
       labels:
         app: redis-sentinel
     spec:
+      terminationGracePeriodSeconds: 10
       dnsPolicy: ClusterFirst
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values: [redis-sentinel]
+                matchLabels:
+                  app: redis-sentinel
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: sentinel
           image: redis:7.2
           args:
-            - "/usr/local/bin/redis-server"
+            - "redis-server"
             - "/etc/sentinel/sentinel.conf"
             - "--sentinel"
           ports:
             - containerPort: 26379
+              name: sentinel
           volumeMounts:
-            - name: config
+            - name: sentinel-config
               mountPath: /etc/sentinel
       volumes:
-        - name: config
+        - name: sentinel-config
           configMap:
             name: sentinel-config
