@@ -25,23 +25,20 @@ spec:
                 values:
                 - redis-sentinel
             topologyKey: "kubernetes.io/hostname"
-      initContainers:
-        - name: wait-for-redis
-          image: busybox:1.35
+      containers:
+        - name: sentinel
+          image: redis:7.2
           command:
             - sh
             - -c
             - |
-              echo "Waiting for redis-0.redis-headless.redis.svc.cluster.local to resolve..."
+              echo "Waiting for DNS to resolve redis-0...";
               until nslookup redis-0.redis-headless.redis.svc.cluster.local; do
-                echo "Waiting for DNS..."
-                sleep 2
+                echo "Still waiting...";
+                sleep 2;
               done
-              echo "DNS resolved."
-      containers:
-        - name: sentinel
-          image: redis:7.2
-          command: ["redis-sentinel", "/etc/sentinel/sentinel.conf"]
+              echo "DNS resolved. Starting redis-sentinel...";
+              redis-sentinel /etc/sentinel/sentinel.conf
           ports:
             - containerPort: 26379
           volumeMounts:
