@@ -5,10 +5,11 @@ metadata:
   namespace: redis
 data:
   sentinel.conf: |
+    daemonize no
     port 26379
+    bind 0.0.0.0
+    protected-mode no
     sentinel monitor mymaster redis-0.redis-headless.redis.svc.cluster.local 6379 2
     sentinel down-after-milliseconds mymaster 5000
     sentinel failover-timeout mymaster 10000
     sentinel parallel-syncs mymaster 1
-    protected-mode no
-    bind 0.0.0.0

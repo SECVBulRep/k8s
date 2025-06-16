@@ -25,7 +25,16 @@ spec:
       initContainers:
         - name: wait-for-redis
           image: busybox:1.36
-          command: ['sh', '-c', 'until nslookup redis-0.redis-headless.redis.svc.cluster.local; do echo waiting for redis-0; sleep 2; done']
+          command:
+            - sh
+            - -c
+            - |
+              echo "Ожидаем DNS..."
+              until nslookup redis-0.redis-headless.redis.svc.cluster.local; do sleep 2; done
+              echo "DNS найден. Ждём TCP порт..."
+              until nc -z redis-0.redis-headless.redis.svc.cluster.local 6379; do sleep 2; done
+              echo "redis-0 доступен. Ждём дополнительно 5 секунд для стабильности DNS..."
+              sleep 5
       containers:
         - name: sentinel
           image: redis:7.2
