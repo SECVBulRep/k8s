@@ -39,8 +39,5 @@ spec:
         - name: config
           configMap:
             name: redis-config
-  volumeClaimTemplates: []
-  volumeMounts:
-    - name: data
-      mountPath: /data
-      emptyDir: {}
+        - name: data
+          emptyDir: {}
