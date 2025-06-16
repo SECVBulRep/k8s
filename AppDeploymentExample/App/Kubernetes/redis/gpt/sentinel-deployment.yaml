@@ -13,6 +13,7 @@ spec:
       labels:
         app: redis-sentinel
     spec:
+      dnsPolicy: ClusterFirst
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
