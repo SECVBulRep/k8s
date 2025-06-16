@@ -30,14 +30,14 @@ spec:
             - sh
             - -c
             - |
-              echo "Ожидание DNS внутри основного контейнера..."
+              echo "Ожидаем DNS внутри контейнера..."
               until nslookup redis-0.redis-headless.redis.svc.cluster.local; do sleep 2; done
               echo "DNS найден. Ждём TCP порт..."
               until nc -z redis-0.redis-headless.redis.svc.cluster.local 6379; do sleep 2; done
               echo "redis-0 доступен. Ждём дополнительно 5 секунд..."
               sleep 5
-              echo "Запуск redis-sentinel..."
-              exec redis-sentinel /etc/sentinel/sentinel.conf
+              echo "Запуск redis-sentinel через redis-server --sentinel"
+              exec redis-server /etc/sentinel/sentinel.conf --sentinel
           ports:
             - containerPort: 26379
           volumeMounts:
