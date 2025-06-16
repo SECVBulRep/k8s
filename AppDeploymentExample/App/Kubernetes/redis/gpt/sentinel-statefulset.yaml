@@ -4,39 +4,37 @@ metadata:
   name: redis-sentinel
   namespace: redis
 spec:
-  serviceName: redis-sentinel
   replicas: 3
   selector:
     matchLabels:
       app: redis-sentinel
+  serviceName: redis-sentinel
   template:
     metadata:
       labels:
         app: redis-sentinel
     spec:
-      terminationGracePeriodSeconds: 10
       dnsPolicy: ClusterFirst
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  app: redis-sentinel
-              topologyKey: "kubernetes.io/hostname"
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - redis-sentinel
+            topologyKey: "kubernetes.io/hostname"
       containers:
-        - name: sentinel
-          image: redis:7.2
-          args:
-            - "redis-server"
-            - "/etc/sentinel/sentinel.conf"
-            - "--sentinel"
-          ports:
-            - containerPort: 26379
-              name: sentinel
-          volumeMounts:
-            - name: sentinel-config
-              mountPath: /etc/sentinel
+      - name: sentinel
+        image: redis:7.2
+        command: ["redis-sentinel", "/etc/sentinel/sentinel.conf"]
+        ports:
+        - containerPort: 26379
+        volumeMounts:
+        - name: config
+          mountPath: /etc/sentinel
       volumes:
-        - name: sentinel-config
-          configMap:
-            name: sentinel-config
+      - name: config
+        configMap:
+          name: sentinel-config
