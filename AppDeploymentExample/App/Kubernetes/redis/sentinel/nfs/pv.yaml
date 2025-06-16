@@ -1,9 +1,8 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: redis-nfs-pv-k8s01
+  name: redis-nfs-pv-1
   labels:
-    node: k8s01
     type: redis
 spec:
   capacity:
@@ -14,14 +13,13 @@ spec:
   storageClassName: nfs-storage
   nfs:
     server: 172.16.29.101
-    path: /mnt/nfs/redis
+    path: /mnt/nfs/redis-1
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: redis-nfs-pv-k8s02
+  name: redis-nfs-pv-2
   labels:
-    node: k8s02
     type: redis
 spec:
   capacity:
@@ -31,15 +29,14 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.102
-    path: /mnt/nfs/redis
+    server: 172.16.29.101
+    path: /mnt/nfs/redis-2
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: redis-nfs-pv-k8s03
+  name: redis-nfs-pv-3
   labels:
-    node: k8s03
     type: redis
 spec:
   capacity:
@@ -49,15 +46,14 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.103
-    path: /mnt/nfs/redis
+    server: 172.16.29.101
+    path: /mnt/nfs/redis-3
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: sentinel-nfs-pv-k8s01
+  name: sentinel-nfs-pv-1
   labels:
-    node: k8s01
     type: sentinel
 spec:
   capacity:
@@ -68,14 +64,13 @@ spec:
   storageClassName: nfs-storage
   nfs:
     server: 172.16.29.101
-    path: /mnt/nfs/sentinel
+    path: /mnt/nfs/sentinel-1
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: sentinel-nfs-pv-k8s02
+  name: sentinel-nfs-pv-2
   labels:
-    node: k8s02
     type: sentinel
 spec:
   capacity:
@@ -85,15 +80,14 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.102
-    path: /mnt/nfs/sentinel
+    server: 172.16.29.101
+    path: /mnt/nfs/sentinel-2
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: sentinel-nfs-pv-k8s03
+  name: sentinel-nfs-pv-3
   labels:
-    node: k8s03
     type: sentinel
 spec:
   capacity:
@@ -103,5 +97,5 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs-storage
   nfs:
-    server: 172.16.29.103
-    path: /mnt/nfs/sentinel
+    server: 172.16.29.101
+    path: /mnt/nfs/sentinel-3

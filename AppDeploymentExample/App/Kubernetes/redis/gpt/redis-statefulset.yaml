@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: redis
+spec:
+  serviceName: redis-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values: [redis]
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: redis
+          image: redis:7.2
+          command: ["redis-server"]
+          args: ["/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: redis-config
+  volumeClaimTemplates: []
+  volumeMounts:
+    - name: data
+      mountPath: /data
+      emptyDir: {}

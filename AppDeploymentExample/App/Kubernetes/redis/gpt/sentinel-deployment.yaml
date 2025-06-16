@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-sentinel
+  namespace: redis
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis-sentinel
+  template:
+    metadata:
+      labels:
+        app: redis-sentinel
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values: [redis-sentinel]
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: sentinel
+          image: redis:7.2
+          command: ["redis-sentinel", "/etc/sentinel/sentinel.conf"]
+          ports:
+            - containerPort: 26379
+          volumeMounts:
+            - name: config
+              mountPath: /etc/sentinel
+      volumes:
+        - name: config
+          configMap:
+            name: sentinel-config
