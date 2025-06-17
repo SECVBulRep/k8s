@@ -1,4 +1,3 @@
-# redis-statefulset-original.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -19,32 +18,22 @@ spec:
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - redis
-              topologyKey: kubernetes.io/hostname
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - redis
+                topologyKey: kubernetes.io/hostname
       containers:
         - name: redis
           image: redis:7.2
           args:
             - "redis-server"
             - "/etc/redis/redis.conf"
-          env:
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-          command: ["sh", "-c",
-            "if [ \"${HOSTNAME}\" = \"redis-0\" ]; then
-               redis-server /etc/redis/redis.conf;
-             else
-               redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379;
-             fi"]
+          command: ["sh", "-c", "if [ \"${HOSTNAME}\" = \"redis-0\" ]; then redis-server /etc/redis/redis.conf; else redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379; fi"]
           ports:
             - containerPort: 6379
           volumeMounts:

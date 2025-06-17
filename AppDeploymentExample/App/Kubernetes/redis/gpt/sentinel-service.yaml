@@ -25,4 +25,3 @@ spec:
   ports:
     - port: 26379
       targetPort: 26379
-

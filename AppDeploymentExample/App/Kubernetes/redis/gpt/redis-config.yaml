@@ -7,6 +7,8 @@ data:
   redis.conf: |
     port 6379
     appendonly no
+    save ""
     dir /data
     protected-mode no
     bind 0.0.0.0
+    requirepass your-secure-password
