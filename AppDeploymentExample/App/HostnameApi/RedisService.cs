@@ -19,7 +19,7 @@ public class RedisService
         {
             throw new ArgumentException("Redis ClusterNodes configuration is missing.");
         }
-
+        
         var options = new ConfigurationOptions
         {
             EndPoints = { },
@@ -27,7 +27,8 @@ public class RedisService
             AllowAdmin = true,
             AbortOnConnectFail = false,
             ConnectTimeout = 5000,
-            SyncTimeout = 5000
+            SyncTimeout = 5000,
+            ServiceName = "mymaster" // Sentinel master name
         };
 
         foreach (var node in clusterNodes.Split(','))
