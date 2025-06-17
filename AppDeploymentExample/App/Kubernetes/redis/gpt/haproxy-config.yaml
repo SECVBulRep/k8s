@@ -6,26 +6,22 @@ metadata:
 data:
   haproxy.cfg: |
     global
-      daemon
-      maxconn 256
+        daemon
+        maxconn 256
 
     defaults
-      mode tcp
-      timeout connect 10s
-      timeout client 1m
-      timeout server 1m
+        mode tcp
+        timeout connect 5000ms
+        timeout client 50000ms
+        timeout server 50000ms
 
     frontend redis
-      bind *:6379
-      default_backend redis_backend
+        bind *:6379
+        default_backend redis_backend
 
     backend redis_backend
-      option tcp-check
-      tcp-check connect
-      tcp-check send "PING\r\n"
-      tcp-check expect string +PONG
-      tcp-check send "INFO replication\r\n"
-      tcp-check expect string role:master
-      server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check
-      server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check
-      server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check
+        option tcp-check
+        tcp-check connect
+        server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+        server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+        server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s
