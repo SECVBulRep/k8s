@@ -47,9 +47,11 @@ spec:
             - name: REDIS_SENTINEL_ANNOUNCE_HOSTNAMES
               value: "no"
             - name: REDIS_SENTINEL_ANNOUNCE_IP
-              value: "172.16.29.110"
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: REDIS_SENTINEL_ANNOUNCE_PORT
-              value: "6379"
+              value: "26379"
             - name: REDIS_SENTINEL_PORT_NUMBER
               value: "26379"
           ports:
