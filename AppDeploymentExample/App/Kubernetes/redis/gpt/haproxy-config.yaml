@@ -9,6 +9,7 @@ data:
       daemon
       maxconn 256
       lua-load /usr/local/etc/haproxy/redis.lua
+      log stdout format raw daemon
 
     defaults
       mode tcp
@@ -20,12 +21,11 @@ data:
     frontend redis
       bind *:6379
       tcp-request connection lua.redis_master
-      use-server redis if { var(txn.redis_host) -m found }
       default_backend redis-backend
 
     backend redis-backend
       mode tcp
-      server redis 127.0.0.1:6379
+      server redis 0.0.0.0:6379 send-proxy
   redis.lua: |
     core.register_init(function()
       sentinel_host = "redis-sentinel.redis.svc.cluster.local"
@@ -39,14 +39,13 @@ data:
       s:settimeout(1000)
 
       if not s:connect(sentinel_host, sentinel_port) then
+        core.Debug("Sentinel connect failed")
         return
       end
 
       s:send(command)
       local line = s:receive("*l")
-      if not line or not line:match("^%*2") then
-        return
-      end
+      if not line or not line:match("^%*2") then return end
 
       local len1 = tonumber(s:receive("*l"):sub(2))
       local ip = s:receive(len1 + 2):sub(1, len1)
@@ -54,6 +53,8 @@ data:
       local port = s:receive(len2 + 2):sub(1, len2)
       s:close()
 
-      txn:set_var("txn.redis_host", ip)
-      txn:set_var("txn.redis_port", port)
+      txn:set_var("txn.dst", ip)
+      txn:set_var("txn.dst_port", port)
+      txn:set_dst(ip)
+      txn:set_dst_port(tonumber(port))
     end
