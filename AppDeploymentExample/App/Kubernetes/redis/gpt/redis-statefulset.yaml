@@ -1,4 +1,4 @@
-# Упрощенный StatefulSet без init-контейнера
+# 2. redis-statefulset.yaml - ИЗМЕНЁН
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -16,6 +16,18 @@ spec:
         app: redis
     spec:
       terminationGracePeriodSeconds: 10
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - redis
+              topologyKey: kubernetes.io/hostname
       containers:
         - name: redis
           image: redis:7.2
@@ -27,9 +39,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            # Назначаем мастером первый под (redis-0)
-            - name: REDIS_MASTER
-              value: "$(HOSTNAME)"
           command: ["sh", "-c",
             "if [[ $HOSTNAME =~ -0$ ]]; then
                redis-server /etc/redis/redis.conf;
@@ -41,7 +50,6 @@ spec:
           volumeMounts:
             - name: redis-config
               mountPath: /etc/redis
-      
       volumes:
         - name: redis-config
           configMap:
