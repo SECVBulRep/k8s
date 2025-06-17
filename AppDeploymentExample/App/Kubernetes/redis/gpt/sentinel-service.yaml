@@ -11,4 +11,18 @@ spec:
     - name: redis-sentinel
       port: 26379
       targetPort: redis-sentinel
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel-external
+  namespace: redis
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 172.16.29.111
+  selector:
+    app: redis-sentinel
+  ports:
+    - port: 26379
+      targetPort: 26379
 

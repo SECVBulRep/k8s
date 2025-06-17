@@ -21,6 +21,11 @@ spec:
           args:
             - "redis-server"
             - "/etc/redis/redis.conf"
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
           ports:
             - containerPort: 6379
           volumeMounts:
