@@ -3,14 +3,13 @@ kind: Service
 metadata:
   name: haproxy
   namespace: redis
-  labels:
-    app: haproxy
 spec:
+  type: LoadBalancer
+  loadBalancerIP: 172.16.29.110
   selector:
     app: haproxy
-  type: LoadBalancer
-  externalTrafficPolicy: Local
   ports:
     - name: redis
+      protocol: TCP
       port: 6379
       targetPort: 6379
