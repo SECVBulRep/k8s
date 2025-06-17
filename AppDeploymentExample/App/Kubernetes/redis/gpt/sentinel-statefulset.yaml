@@ -47,18 +47,11 @@ spec:
             - name: REDIS_SENTINEL_ANNOUNCE_HOSTNAMES
               value: "no"
             - name: REDIS_SENTINEL_ANNOUNCE_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
+              value: "172.16.29.110"
             - name: REDIS_SENTINEL_ANNOUNCE_PORT
+              value: "6379"
+            - name: REDIS_SENTINEL_PORT_NUMBER
               value: "26379"
           ports:
             - name: redis-sentinel
               containerPort: 26379
-          volumeMounts:
-            - name: sentinel-config
-              mountPath: /etc/redis
-      volumes:
-        - name: sentinel-config
-          configMap:
-            name: sentinel-config
