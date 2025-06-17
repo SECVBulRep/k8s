@@ -14,6 +14,7 @@ public class RedisService
         var redisConfig = configuration.GetSection("Redis");
         var clusterNodes = redisConfig["ClusterNodes"];
         _password = redisConfig["Password"];
+        var serviceName = redisConfig["ServiceName"];
 
         if (string.IsNullOrEmpty(clusterNodes))
         {
@@ -28,7 +29,7 @@ public class RedisService
             AbortOnConnectFail = false,
             ConnectTimeout = 5000,
             SyncTimeout = 5000,
-            ServiceName = "mymaster" // Sentinel master name
+            ServiceName = serviceName
         };
 
         foreach (var node in clusterNodes.Split(','))
