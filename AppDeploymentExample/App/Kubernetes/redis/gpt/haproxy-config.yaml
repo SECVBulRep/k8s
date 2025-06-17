@@ -6,22 +6,57 @@ metadata:
 data:
   haproxy.cfg: |
     global
-        daemon
-        maxconn 256
+      daemon
+      maxconn 256
+      lua-load /usr/local/etc/haproxy/redis.lua
 
     defaults
-        mode tcp
-        timeout connect 5000ms
-        timeout client 50000ms
-        timeout server 50000ms
+      mode tcp
+      timeout connect 5s
+      timeout client  30s
+      timeout server  30s
+      log global
 
     frontend redis
-        bind *:6379
-        default_backend redis_backend
+      bind *:6379
+      default_backend redis-backend
 
-    backend redis_backend
-        option tcp-check
-        tcp-check connect
-        server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+    backend redis-backend
+      mode tcp
+      tcp-request connection lua.redis_master
+      server redis 127.0.0.1:6379
+  redis.lua: |
+    core.register_init(function()
+      sentinel_host = "redis-sentinel.redis.svc.cluster.local"
+      sentinel_port = 26379
+      sentinel_name = "mymaster"
+    end)
+
+    function redis_master(txn)
+      local command = "*3\r\n$8\r\nSENTINEL\r\n$23\r\nget-master-addr-by-name\r\n$" .. string.len(sentinel_name) .. "\r\n" .. sentinel_name .. "\r\n"
+      local s = core.tcp()
+      s:settimeout(1000)
+
+      if not s:connect(sentinel_host, sentinel_port) then
+        txn:set_var("txn.redis_host", "127.0.0.1")
+        txn:set_var("txn.redis_port", "6379")
+        return
+      end
+
+      s:send(command)
+      local line = s:receive("*l")
+      if not line or not line:match("^%*2") then
+        txn:set_var("txn.redis_host", "127.0.0.1")
+        txn:set_var("txn.redis_port", "6379")
+        return
+      end
+
+      local len1 = tonumber(s:receive("*l"):sub(2))
+      local ip = s:receive(len1 + 2):sub(1, len1)
+      local len2 = tonumber(s:receive("*l"):sub(2))
+      local port = s:receive(len2 + 2):sub(1, len2)
+      s:close()
+
+      txn:set_var("txn.redis_host", ip)
+      txn:set_var("txn.redis_port", port)
+    end
