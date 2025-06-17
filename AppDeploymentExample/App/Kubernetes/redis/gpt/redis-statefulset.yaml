@@ -1,4 +1,4 @@
-# 2. redis-statefulset.yaml - ИЗМЕНЁН
+# redis-statefulset-fixed.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -31,22 +31,50 @@ spec:
       containers:
         - name: redis
           image: redis:7.2
-          args:
-            - "redis-server"
-            - "/etc/redis/redis.conf"
           env:
             - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          command: ["sh", "-c",
-            "if [[ $HOSTNAME =~ -0$ ]]; then
-               redis-server /etc/redis/redis.conf;
-             else
-               redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379;
-             fi"]
+          command: ["sh", "-c"]
+          args:
+            - |
+              if [[ $(hostname) =~ -0$ ]]; then
+                echo "Starting as master"
+                redis-server /etc/redis/redis.conf
+              else
+                echo "Starting as replica, waiting for master..."
+                # Ждём пока мастер станет доступен
+                until redis-cli -h redis-0.redis-headless.redis.svc.cluster.local ping; do
+                  echo "Waiting for master to be ready..."
+                  sleep 2
+                done
+                echo "Master is ready, starting as replica"
+                redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379
+              fi
           ports:
             - containerPort: 6379
+          livenessProbe:
+            exec:
+              command:
+              - redis-cli
+              - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                redis-cli ping && 
+                if [[ $(hostname) =~ -0$ ]]; then
+                  redis-cli INFO replication | grep "role:master"
+                else
+                  redis-cli INFO replication | grep "role:slave"
+                fi
+            initialDelaySeconds: 10
+            periodSeconds: 5
           volumeMounts:
             - name: redis-config
               mountPath: /etc/redis
