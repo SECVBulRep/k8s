@@ -1,4 +1,4 @@
-# redis-statefulset-fixed-sh.yaml
+# redis-statefulset-original.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -31,59 +31,22 @@ spec:
       containers:
         - name: redis
           image: redis:7.2
+          args:
+            - "redis-server"
+            - "/etc/redis/redis.conf"
           env:
             - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: HOSTNAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-          command: ["sh", "-c"]
-          args:
-            - |
-              case "$HOSTNAME" in
-                *-0)
-                  echo "Starting as master"
-                  redis-server /etc/redis/redis.conf
-                  ;;
-                *)
-                  echo "Starting as replica, waiting for master..."
-                  until redis-cli -h redis-0.redis-headless.redis.svc.cluster.local ping; do
-                    echo "Waiting for master to be ready..."
-                    sleep 2
-                  done
-                  echo "Master is ready, starting as replica"
-                  redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379
-                  ;;
-              esac
+          command: ["sh", "-c",
+            "if [ \"${HOSTNAME}\" = \"redis-0\" ]; then
+               redis-server /etc/redis/redis.conf;
+             else
+               redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379;
+             fi"]
           ports:
             - containerPort: 6379
-          livenessProbe:
-            exec:
-              command:
-              - redis-cli
-              - ping
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-              - sh
-              - -c
-              - |
-                redis-cli ping && 
-                case "$HOSTNAME" in
-                  *-0)
-                    redis-cli INFO replication | grep "role:master"
-                    ;;
-                  *)
-                    redis-cli INFO replication | grep "role:slave"
-                    ;;
-                esac
-            initialDelaySeconds: 10
-            periodSeconds: 5
           volumeMounts:
             - name: redis-config
               mountPath: /etc/redis
