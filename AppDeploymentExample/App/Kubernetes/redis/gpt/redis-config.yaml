@@ -8,5 +8,6 @@ data:
     port 6379
     appendonly no
     dir /data
+    replica-announce-ip $(POD_IP)
     protected-mode no
     bind 0.0.0.0

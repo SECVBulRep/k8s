@@ -8,18 +8,20 @@ data:
     global
         daemon
         maxconn 256
+
     defaults
         mode tcp
         timeout connect 5000ms
         timeout client 50000ms
         timeout server 50000ms
+
     frontend redis
         bind *:6379
         default_backend redis_backend
+
     backend redis_backend
         option tcp-check
         tcp-check connect
         server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
         server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s
         server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        option redis-check

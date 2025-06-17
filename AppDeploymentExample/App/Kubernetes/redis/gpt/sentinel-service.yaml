@@ -11,19 +11,4 @@ spec:
     - name: redis-sentinel
       port: 26379
       targetPort: redis-sentinel
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-sentinel-lb
-  namespace: redis
-spec:
-  type: LoadBalancer
-  loadBalancerIP: 172.16.29.111 # Используйте другой IP из пула MetalLB
-  selector:
-    app: redis-sentinel
-  ports:
-    - name: redis-sentinel
-      protocol: TCP
-      port: 26379
-      targetPort: redis-sentinel
+
