@@ -7,7 +7,7 @@ data:
   haproxy.cfg: |
     global
       daemon
-      maxconn 256
+      maxconn 2048
       lua-load /usr/local/etc/haproxy/redis.lua
       log stdout format raw daemon
 
@@ -18,14 +18,14 @@ data:
       timeout server  30s
       log global
 
-    frontend redis
+    frontend redis_front
       bind *:6379
-      tcp-request connection lua.redis_master
-      default_backend redis-backend
+      default_backend redis_backend
 
-    backend redis-backend
+    backend redis_backend
       mode tcp
-      server redis 0.0.0.0:6379 send-proxy
+      tcp-request content lua.redis_master
+      server dummy 127.0.0.1:6379
   redis.lua: |
     core.register_init(function()
       sentinel_host = "redis-sentinel.redis.svc.cluster.local"
@@ -34,24 +34,25 @@ data:
     end)
 
     function redis_master(txn)
-      local command = "*3\r\n$8\r\nSENTINEL\r\n$23\r\nget-master-addr-by-name\r\n$" .. string.len(sentinel_name) .. "\r\n" .. sentinel_name .. "\r\n"
-      local s = core.tcp()
-      s:settimeout(1000)
+      local command = "*3\r\n$8\r\nSENTINEL\r\n$23\r\nget-master-addr-by-name\r\n$" .. sentinel_name:len() .. "\r\n" .. sentinel_name .. "\r\n"
+      local sock = core.tcp()
+      sock:settimeout(1000)
 
-      if not s:connect(sentinel_host, sentinel_port) then
-        core.Debug("Sentinel connect failed")
+      if not sock:connect(sentinel_host, sentinel_port) then
+        core.Alert("Sentinel connection failed")
         return
       end
 
-      s:send(command)
-      local line = s:receive("*l")
-      if not line or not line:match("^%*2") then return end
+      sock:send(command)
+      local l1 = sock:receive("*l")
+      if not l1 or not l1:match("^%*2") then return end
 
-      local len1 = tonumber(s:receive("*l"):sub(2))
-      local ip = s:receive(len1 + 2):sub(1, len1)
-      local len2 = tonumber(s:receive("*l"):sub(2))
-      local port = s:receive(len2 + 2):sub(1, len2)
-      s:close()
+      local len1 = tonumber(sock:receive("*l"):sub(2))
+      local ip = sock:receive(len1 + 2):sub(1, len1)
+
+      local len2 = tonumber(sock:receive("*l"):sub(2))
+      local port = sock:receive(len2 + 2):sub(1, len2)
+      sock:close()
 
       txn:set_var("txn.dst", ip)
       txn:set_var("txn.dst_port", port)
