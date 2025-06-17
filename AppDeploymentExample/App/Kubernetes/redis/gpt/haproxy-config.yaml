@@ -20,13 +20,13 @@ data:
 
     frontend fe_redis
       bind *:6379
+      tcp-request inspect-delay 1s
       tcp-request content lua.redis_master
-      default_backend be_redis
+      use-server redis_master if { var(txn.redis_valid) -m bool true }
 
     backend be_redis
       mode tcp
-      server fallback 127.0.0.1:6379
-
+      server redis_master 127.0.0.1:6379 maxconn 1024 disabled
   redis.lua: |
     core.register_init(function()
       sentinel_host = "redis-sentinel.redis.svc.cluster.local"
@@ -40,7 +40,6 @@ data:
       sock:settimeout(1000)
 
       if not sock:connect(sentinel_host, sentinel_port) then
-        core.Alert("Sentinel connect failed")
         return
       end
 
@@ -55,6 +54,7 @@ data:
       local port = sock:receive(len2 + 2):sub(1, len2)
       sock:close()
 
+      txn:set_var("txn.redis_valid", true)
       txn:set_var("txn.dst", ip)
       txn:set_var("txn.dst_port", port)
       txn:set_dst(ip)
