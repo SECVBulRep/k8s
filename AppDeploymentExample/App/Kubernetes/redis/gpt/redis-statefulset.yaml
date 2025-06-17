@@ -15,27 +15,39 @@ spec:
         app: redis-sentinel
     spec:
       terminationGracePeriodSeconds: 10
-      dnsPolicy: ClusterFirst
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-                matchLabels:
-                  app: redis-sentinel
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - redis-sentinel
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: sentinel
-          image: redis:7.2
-          args:
-            - "redis-server"
-            - "/etc/sentinel/sentinel.conf"
-            - "--sentinel"
+          image: bitnami/redis-sentinel:7.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: REDIS_MASTER_NAME
+              value: mymaster
+            - name: REDIS_MASTER_HOST
+              value: "172.16.29.110"
+            - name: REDIS_MASTER_PORT_NUMBER
+              value: "6379"
+            - name: REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS
+              value: "5000"
+            - name: REDIS_SENTINEL_FAILOVER_TIMEOUT
+              value: "10000"
+            - name: REDIS_SENTINEL_PARALLEL_SYNCS
+              value: "1"
+            - name: REDIS_SENTINEL_ANNOUNCE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: REDIS_SENTINEL_ANNOUNCE_PORT
+              value: "26379"
           ports:
-            - containerPort: 26379
-          volumeMounts:
-            - name: sentinel-config
-              mountPath: /etc/sentinel
-      volumes:
-        - name: sentinel-config
-          configMap:
-            name: sentinel-config
+            - name: redis-sentinel
+              containerPort: 26379
