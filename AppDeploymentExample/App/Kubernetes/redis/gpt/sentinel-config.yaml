@@ -7,7 +7,7 @@ data:
   sentinel.conf: |
     port 26379
     dir /tmp
-    sentinel monitor mymaster redis-0.redis-headless.redis.svc.cluster.local 6379 2
+    sentinel monitor mymaster 172.16.29.110 6379 2
     sentinel down-after-milliseconds mymaster 5000
     sentinel parallel-syncs mymaster 1
     sentinel failover-timeout mymaster 10000
