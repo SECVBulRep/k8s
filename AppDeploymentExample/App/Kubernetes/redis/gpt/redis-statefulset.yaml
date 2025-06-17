@@ -15,6 +15,21 @@ spec:
         app: redis
     spec:
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: config-updater
+          image: busybox:1.36
+          command: ['sh', '-c', 
+            'echo "replica-announce-ip $POD_IP" >> /etc/redis/redis.conf;
+             echo "replicaof $(redis-cli -h redis-sentinel.redis.svc.cluster.local -p 26379 --raw SENTINEL get-master-addr-by-name mymaster | head -1) 6379" >> /etc/redis/redis.conf']
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis
+      
       containers:
         - name: redis
           image: redis:7.2
@@ -31,6 +46,24 @@ spec:
           volumeMounts:
             - name: redis-config
               mountPath: /etc/redis
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", 
+                  "sleep 30; redis-cli -h localhost REPLICAOF $(redis-cli -h redis-sentinel.redis.svc.cluster.local -p 26379 --raw SENTINEL get-master-addr-by-name mymaster | head -1) 6379 || true"]
+      
+        # Sentinel-агент для автоматического обновления конфигурации
+        - name: sentinel-agent
+          image: bitnami/redis-sentinel:7.2
+          command: ['/bin/sh', '-c', 
+            'while true; do
+               current_master=$(redis-cli -h redis-sentinel.redis.svc.cluster.local -p 26379 --raw SENTINEL get-master-addr-by-name mymaster | head -1);
+               if [ "$current_master" != "$(redis-cli -h localhost CONFIG GET replicaof | tail -1)" ]; then
+                 redis-cli -h localhost REPLICAOF $current_master 6379;
+               fi;
+               sleep 10;
+             done']
+          
       volumes:
         - name: redis-config
           configMap:
