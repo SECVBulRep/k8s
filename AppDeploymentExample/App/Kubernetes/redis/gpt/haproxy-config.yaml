@@ -6,56 +6,22 @@ metadata:
 data:
   haproxy.cfg: |
     global
-      daemon
-      maxconn 2048
-      lua-load /usr/local/etc/haproxy/redis.lua
-      log stdout format raw daemon
+        daemon
+        maxconn 256
 
     defaults
-      mode tcp
-      timeout connect 5s
-      timeout client 30s
-      timeout server 30s
-      log global
+        mode tcp
+        timeout connect 5000ms
+        timeout client 50000ms
+        timeout server 50000ms
 
-    frontend fe_redis
-      bind *:6379
-      default_backend be_redis
+    frontend redis
+        bind *:6379
+        default_backend redis_backend
 
-    backend be_redis
-      mode tcp
-      tcp-request content lua.redis_master
-      server dummy 127.0.0.1:6379 send-proxy
-  redis.lua: |
-    core.register_init(function()
-      sentinel_host = "redis-sentinel.redis.svc.cluster.local"
-      sentinel_port = 26379
-      sentinel_name = "mymaster"
-    end)
-
-    function redis_master(txn)
-      local command = "*3\r\n$8\r\nSENTINEL\r\n$23\r\nget-master-addr-by-name\r\n$" .. sentinel_name:len() .. "\r\n" .. sentinel_name .. "\r\n"
-      local sock = core.tcp()
-      sock:settimeout(1000)
-
-      if not sock:connect(sentinel_host, sentinel_port) then
-        core.Alert("Sentinel connect failed")
-        return
-      end
-
-      sock:send(command)
-      local line = sock:receive("*l")
-      if not line or not line:match("^%*2") then return end
-
-      local len1 = tonumber(sock:receive("*l"):sub(2))
-      local ip = sock:receive(len1 + 2):sub(1, len1)
-
-      local len2 = tonumber(sock:receive("*l"):sub(2))
-      local port = sock:receive(len2 + 2):sub(1, len2)
-      sock:close()
-
-      txn:set_var("txn.dst", ip)
-      txn:set_var("txn.dst_port", port)
-      txn:set_dst(ip)
-      txn:set_dst_port(tonumber(port))
-    end
+    backend redis_backend
+        option tcp-check
+        tcp-check connect
+        server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+        server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+        server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s

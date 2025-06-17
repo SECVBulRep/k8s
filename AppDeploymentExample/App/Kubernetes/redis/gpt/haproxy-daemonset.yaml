@@ -16,29 +16,13 @@ spec:
     spec:
       containers:
         - name: haproxy
-          image: haproxytech/haproxy-alpine:2.9
-          args:
-            - -f
-            - /usr/local/etc/haproxy/haproxy.cfg
+          image: haproxy:2.9
           ports:
             - containerPort: 6379
           volumeMounts:
-            - name: haproxy-config
-              mountPath: /usr/local/etc/haproxy/haproxy.cfg
-              subPath: haproxy.cfg
-            - name: lua-script
-              mountPath: /usr/local/etc/haproxy/redis.lua
-              subPath: redis.lua
+            - name: config
+              mountPath: /usr/local/etc/haproxy
       volumes:
-        - name: haproxy-config
+        - name: config
           configMap:
             name: haproxy-config
-            items:
-              - key: haproxy.cfg
-                path: haproxy.cfg
-        - name: lua-script
-          configMap:
-            name: haproxy-config
-            items:
-              - key: redis.lua
-                path: redis.lua
