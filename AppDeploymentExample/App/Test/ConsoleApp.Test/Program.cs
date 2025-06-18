@@ -1,115 +1,132 @@
 ﻿using StackExchange.Redis;
+using System;
+using System.Threading.Tasks;
 
-class Program
+namespace RedisTestApp
 {
-    static async Task Main(string[] args)
+    class Program
     {
-        Console.WriteLine("=== Redis K8s Connection Test (через Sentinel) ===\n");
+        private static ConnectionMultiplexer? redis;
+        private static IDatabase? db;
 
-        var sentinelHost = "172.16.29.111:26379";  // Sentinel на порту 26379!
-        var serviceName = "mymaster";
-        
-        try
+        static async Task Main(string[] args)
         {
-            // Шаг 1: Подключаемся к Sentinel чтобы найти master
-            Console.WriteLine($"Connecting to Sentinel at {sentinelHost}...");
-            
-            var sentinelOptions = new ConfigurationOptions
+            Console.WriteLine("=== Redis .NET Test Application ===\n");
+
+            try
             {
-                EndPoints = { sentinelHost },
-                CommandMap = CommandMap.Sentinel,
-                AbortOnConnectFail = false,
-                AllowAdmin = true,
-                TieBreaker = ""
+                // Подключение к Redis через HAProxy
+                await ConnectToRedis();
+                
+                // Тестирование базовых операций
+                await TestBasicOperations();
+                
+                // Информация о сервере
+                //await ShowServerInfo();
+                
+                Console.WriteLine("\n✅ Все операции выполнены успешно!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка: {ex.Message}");
+            }
+            finally
+            {
+                redis?.Dispose();
+                Console.WriteLine("\nНажмите любую клавишу для выхода...");
+                Console.ReadKey();
+            }
+        }
+
+        static async Task ConnectToRedis()
+        {
+            Console.WriteLine("🔗 Подключение к Redis...");
+            
+            var config = ConfigurationOptions.Parse("172.16.29.110:6379");
+            config.ConnectTimeout = 5000;
+            config.SyncTimeout = 5000;
+            config.AbortOnConnectFail = false;
+
+            redis = await ConnectionMultiplexer.ConnectAsync(config);
+            db = redis.GetDatabase();
+            
+            Console.WriteLine($"✅ Подключен к Redis: {redis.GetEndPoints()[0]}");
+        }
+
+        static async Task TestBasicOperations()
+        {
+            Console.WriteLine("\n📝 Тестирование базовых операций:");
+
+            // SET операция
+            string key = "test:app:timestamp";
+            string value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            
+            await db!.StringSetAsync(key, value);
+            Console.WriteLine($"SET {key} = \"{value}\"");
+
+            // GET операция
+            var retrievedValue = await db.StringGetAsync(key);
+            Console.WriteLine($"GET {key} = \"{retrievedValue}\"");
+
+            // Множественная запись
+            var batch = new KeyValuePair<RedisKey, RedisValue>[]
+            {
+                new("app:counter", 42),
+                new("app:name", "Redis .NET Client"),
+                new("app:version", "1.0.0")
             };
 
-            using (var sentinel = await ConnectionMultiplexer.ConnectAsync(sentinelOptions))
-            {
-                Console.WriteLine("✅ Connected to Sentinel\n");
-                
-                // Получаем информацию о master
-                var sentinelServer = sentinel.GetServer(sentinel.GetEndPoints()[0]);
-                var masterInfo = await sentinelServer.SentinelMasterAsync(serviceName);
-                
-                Console.WriteLine("Master information from Sentinel:");
-                foreach (var item in masterInfo)
-                {
-                    if (item.Key == "ip" || item.Key == "port" || item.Key == "flags")
-                    {
-                        Console.WriteLine($"  {item.Key}: {item.Value}");
-                    }
-                }
-                
-                var masterIp = masterInfo.FirstOrDefault(x => x.Key == "ip").Value;
-                var masterPort = masterInfo.FirstOrDefault(x => x.Key == "port").Value;
-                var masterEndpoint = $"{masterIp}:{masterPort}";
-                
-                Console.WriteLine($"\n✅ Found master at: {masterEndpoint}\n");
-                
-                // Шаг 2: Подключаемся к найденному master
-                var redisOptions = new ConfigurationOptions
-                {
-                    EndPoints = { masterEndpoint },
-                    AbortOnConnectFail = false,
-                    ConnectTimeout = 10000,
-                    SyncTimeout = 10000,
-                    AllowAdmin = true
-                };
+            await db.StringSetAsync(batch);
+            Console.WriteLine("✅ Записано несколько ключей");
 
-                Console.WriteLine($"Connecting to Redis master at {masterEndpoint}...");
-                
-                using (var redis = await ConnectionMultiplexer.ConnectAsync(redisOptions))
-                {
-                    Console.WriteLine("✅ Connected to Redis master\n");
-                    
-                    var db = redis.GetDatabase();
-                    
-                    // Проверяем что это действительно master
-                    var server = redis.GetServer(redis.GetEndPoints()[0]);
-                    var info = await server.InfoAsync("replication");
-                    var role = info[0].FirstOrDefault(x => x.Key == "role").Value;
-                    Console.WriteLine($"Server role: {role}");
-                    
-                    if (role != "master")
-                    {
-                        Console.WriteLine("⚠️  Warning: Connected to replica, not master!");
-                    }
-                    
-                    // Ping test
-                    Console.WriteLine("\nTesting ping...");
-                    var pingTime = await db.PingAsync();
-                    Console.WriteLine($"✅ Ping response: {pingTime.TotalMilliseconds:F2}ms\n");
-
-                    // Write test
-                    Console.WriteLine("Testing write operation...");
-                    var testKey = $"test:dotnet:{DateTime.Now.Ticks}";
-                    var testValue = $"Hello from .NET at {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
-                    
-                    await db.StringSetAsync(testKey, testValue);
-                    Console.WriteLine($"✅ Written: {testKey} = {testValue}");
-                    
-                    var readValue = await db.StringGetAsync(testKey);
-                    Console.WriteLine($"✅ Read back: {readValue}");
-                    
-                    await db.KeyDeleteAsync(testKey);
-                    Console.WriteLine("✅ Key deleted\n");
-                    
-                    Console.WriteLine("✅ All tests completed successfully!");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"\n❌ Error: {ex.Message}");
-            Console.WriteLine($"   Type: {ex.GetType().Name}");
+            // Множественное чтение
+            var keys = new RedisKey[] { "app:counter", "app:name", "app:version" };
+            var values = await db.StringGetAsync(keys);
             
-            if (ex.InnerException != null)
+            for (int i = 0; i < keys.Length; i++)
             {
-                Console.WriteLine($"   Inner: {ex.InnerException.Message}");
+                Console.WriteLine($"GET {keys[i]} = \"{values[i]}\"");
             }
+
+            // Инкремент
+            var newCounter = await db.StringIncrementAsync("app:counter", 10);
+            Console.WriteLine($"INCR app:counter +10 = {newCounter}");
+
+            // TTL (время жизни)
+            await db.StringSetAsync("temp:key", "expires soon", TimeSpan.FromSeconds(30));
+            var ttl = await db.KeyTimeToLiveAsync("temp:key");
+            Console.WriteLine($"SET temp:key с TTL = {ttl?.TotalSeconds:F0} секунд");
         }
 
-        Console.WriteLine("\nPress any key to exit...");
-        Console.ReadKey();
+        static async Task ShowServerInfo()
+        {
+            Console.WriteLine("\n📊 Информация о сервере:");
+
+            var server = redis!.GetServer(redis.GetEndPoints()[0]);
+            
+            // Основная информация
+            var info = await server.InfoAsync("replication");
+            foreach (var group in info)
+            {
+                foreach (var item in group)
+                {
+                    if (item.Key == "role" || item.Key == "connected_slaves")
+                    {
+                        Console.WriteLine($"{item.Key}: {item.Value}");
+                    }
+                }
+            }
+
+            // Проверка производительности
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            await db!.StringGetAsync("test:latency");
+            stopwatch.Stop();
+            
+            Console.WriteLine($"Latency: {stopwatch.ElapsedMilliseconds} ms");
+            
+            // Количество ключей
+            var keyCount = await server.DatabaseSizeAsync();
+            Console.WriteLine($"Всего ключей в БД: {keyCount}");
+        }
     }
 }

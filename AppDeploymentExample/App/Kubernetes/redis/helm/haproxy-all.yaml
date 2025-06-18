@@ -1,13 +1,15 @@
+# Чистый HAProxy без статистики - только Redis
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-config
+  name: haproxy-clean-config
   namespace: redis
 data:
   haproxy.cfg: |
     global
         daemon
-        maxconn 256
+        maxconn 1000
 
     defaults
         mode tcp
@@ -23,38 +25,46 @@ data:
         mode tcp
         balance first
         option tcp-check
-        # Проверяем что это Redis
+        
+        # Подключение и авторизация
         tcp-check connect
+        tcp-check send AUTH\ admin\ ${ADMIN_PASSWORD}\r\n
+        tcp-check expect string +OK
+        
+        # Проверка доступности
         tcp-check send PING\r\n
         tcp-check expect string +PONG
-        # Проверяем что это master
-        tcp-check send info\ replication\r\n
+        
+        # Проверка что это мастер
+        tcp-check send INFO\ replication\r\n
         tcp-check expect string role:master
+        
+        # Закрытие соединения
         tcp-check send QUIT\r\n
         tcp-check expect string +OK
-        # Проверяем все 3 ноды
-        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s
+        
+        # Redis серверы
+        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 3s
+        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 3s
+        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 3s
 
 ---
-# Deployment HAProxy
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy
+  name: haproxy-clean
   namespace: redis
   labels:
-    app: haproxy
+    app: haproxy-clean
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: haproxy
+      app: haproxy-clean
   template:
     metadata:
       labels:
-        app: haproxy
+        app: haproxy-clean
     spec:
       containers:
       - name: haproxy
@@ -62,10 +72,23 @@ spec:
         ports:
         - containerPort: 6379
           name: redis
+        env:
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-haproxy-secret
+              key: admin-password
         volumeMounts:
         - name: config
           mountPath: /usr/local/etc/haproxy
           readOnly: true
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          apk add --no-cache gettext
+          envsubst '${ADMIN_PASSWORD}' < /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg
+          exec haproxy -f /tmp/haproxy.cfg
         resources:
           requests:
             cpu: 100m
@@ -76,32 +99,31 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 15
-          periodSeconds: 20
+          initialDelaySeconds: 30
+          periodSeconds: 30
         readinessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 5
+          initialDelaySeconds: 10
           periodSeconds: 10
       volumes:
       - name: config
         configMap:
-          name: haproxy-config
+          name: haproxy-clean-config
 
 ---
-# Service для HAProxy с внешним доступом
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-master
+  name: redis-external
   namespace: redis
   labels:
-    app: haproxy
+    app: haproxy-clean
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy
+    app: haproxy-clean
   ports:
   - name: redis
     port: 6379
