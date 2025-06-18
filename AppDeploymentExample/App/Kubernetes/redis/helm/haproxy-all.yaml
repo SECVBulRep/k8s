@@ -1,21 +1,24 @@
-# HAProxy с ПРАВИЛЬНЫМИ health checks под healthcheck пользователем
+# HAProxy с детальной отладкой и правильными health checks
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-correct-healthcheck
+  name: haproxy-debug-detailed
   namespace: redis
 data:
   haproxy.cfg: |
     global
         daemon
         maxconn 1000
+        log stdout local0 debug
 
     defaults
         mode tcp
         timeout connect 5000ms
         timeout client 50000ms
         timeout server 50000ms
+        timeout check 5000ms
+        log global
 
     frontend redis_frontend
         bind *:6379
@@ -25,48 +28,41 @@ data:
         mode tcp
         balance first
         option tcp-check
+        option log-health-checks
         
-        # ПРАВИЛЬНАЯ последовательность health check команд:
+        # Health checks с отладкой
         tcp-check connect
-        
-        # 1. Авторизация (ИСПРАВЛЕННЫЙ формат)
         tcp-check send "AUTH healthcheck HEALTHCHECK_PASSWORD_PLACEHOLDER\r\n"
         tcp-check expect string "+OK"
-        
-        # 2. Проверка доступности  
         tcp-check send "PING\r\n"
         tcp-check expect string "+PONG"
-        
-        # 3. Проверка роли мастера
         tcp-check send "INFO replication\r\n"
         tcp-check expect string "role:master"
-        
-        # 4. Закрытие
         tcp-check send "QUIT\r\n"
         tcp-check expect string "+OK"
         
-        # Redis серверы
-        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
-        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
-        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
+        # Более мягкие настройки серверов
+        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
+        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
+        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy-correct-healthcheck
+  name: haproxy-debug-detailed
   namespace: redis
   labels:
-    app: haproxy-correct-healthcheck
+    app: haproxy-debug-detailed
 spec:
-  replicas: 2
+  replicas: 1  # Только 1 для отладки
   selector:
     matchLabels:
-      app: haproxy-correct-healthcheck
+      app: haproxy-debug-detailed
   template:
     metadata:
       labels:
-        app: haproxy-correct-healthcheck
+        app: haproxy-debug-detailed
     spec:
       containers:
       - name: haproxy
@@ -88,7 +84,7 @@ spec:
         args:
         - -c
         - |
-          echo "=== HAProxy CORRECT healthcheck version ==="
+          echo "=== HAProxy DEBUG version ==="
           
           if [ -z "$HEALTHCHECK_PASSWORD" ]; then
             echo "ERROR: Password not available!"
@@ -97,23 +93,33 @@ spec:
           
           echo "Password: ${HEALTHCHECK_PASSWORD}"
           
-          # Подставляем пароль (ПРАВИЛЬНО)
+          # Подставляем пароль
           sed "s/HEALTHCHECK_PASSWORD_PLACEHOLDER/${HEALTHCHECK_PASSWORD}/g" \
             /etc/haproxy-template/haproxy.cfg > /tmp/haproxy.cfg
           
-          # Показываем что получилось
-          echo "=== Generated AUTH command ==="
-          grep "AUTH.*healthcheck" /tmp/haproxy.cfg
+          echo "=== Final config check ==="
+          grep -A2 -B2 "AUTH.*healthcheck" /tmp/haproxy.cfg
           
           # Проверяем синтаксис
           haproxy -f /tmp/haproxy.cfg -c
           if [ $? -ne 0 ]; then
-            echo "Config error!"
+            echo "Config syntax error!"
+            cat /tmp/haproxy.cfg
             exit 1
           fi
           
-          echo "Starting HAProxy..."
-          exec haproxy -f /tmp/haproxy.cfg
+          # Тестируем сетевую связность ПЕРЕД запуском HAProxy
+          echo "=== Network connectivity test ==="
+          nc -zv redis-node-0.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-0 unreachable"
+          nc -zv redis-node-1.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-1 unreachable"
+          nc -zv redis-node-2.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-2 unreachable"
+          
+          # Тестируем health check команды вручную
+          echo "=== Manual health check test ==="
+          timeout 5 sh -c "echo 'AUTH healthcheck ${HEALTHCHECK_PASSWORD}' | nc redis-node-0.redis-headless.redis.svc.cluster.local 6379" | head -1 || echo "Manual AUTH failed"
+          
+          echo "Starting HAProxy with debug..."
+          exec haproxy -f /tmp/haproxy.cfg -db  # -db включает debug логи
         resources:
           requests:
             cpu: 100m
@@ -124,17 +130,17 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 30
+          initialDelaySeconds: 60  # Больше времени для отладки
           periodSeconds: 30
         readinessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 10
+          initialDelaySeconds: 30
           periodSeconds: 10
       volumes:
       - name: config-template
         configMap:
-          name: haproxy-correct-healthcheck
+          name: haproxy-debug-detailed
 
 ---
 apiVersion: v1
@@ -143,12 +149,12 @@ metadata:
   name: redis-external
   namespace: redis
   labels:
-    app: haproxy-correct-healthcheck
+    app: haproxy-debug-detailed
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy-correct-healthcheck
+    app: haproxy-debug-detailed
   ports:
   - name: redis
     port: 6379
