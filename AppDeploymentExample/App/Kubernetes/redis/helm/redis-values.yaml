@@ -44,7 +44,7 @@ master:
 
 # Replica конфигурация  
 replica:
-  replicaCount: 2
+  replicaCount: 2  # Изменено: теперь будет 3 ноды (1 master + 2 replicas)
   persistence:
     enabled: true
     size: 8Gi
