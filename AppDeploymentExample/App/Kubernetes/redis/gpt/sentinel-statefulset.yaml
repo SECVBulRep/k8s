@@ -27,29 +27,10 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: sentinel
-          image: bitnami/redis-sentinel:7.2
-          imagePullPolicy: IfNotPresent
+          image: redis:7.2
+          command: ["redis-sentinel"]
+          args: ["/etc/redis/sentinel.conf"]
           env:
-            - name: REDIS_MASTER_NAME
-              value: mymaster
-            - name: REDIS_MASTER_HOST
-              value: redis-0.redis-headless.redis.svc.cluster.local
-            - name: REDIS_MASTER_PORT_NUMBER
-              value: "6379"
-            - name: REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS
-              value: "5000"
-            - name: REDIS_SENTINEL_FAILOVER_TIMEOUT
-              value: "10000"
-            - name: REDIS_SENTINEL_PARALLEL_SYNCS
-              value: "1"
-            - name: REDIS_SENTINEL_RESOLVE_HOSTNAMES
-              value: "yes"
-            - name: REDIS_SENTINEL_ANNOUNCE_IP
-              value: "172.16.29.110"
-            - name: REDIS_SENTINEL_ANNOUNCE_PORT
-              value: "6379"
-            - name: REDIS_SENTINEL_PORT_NUMBER
-              value: "26379"
             - name: REDIS_MASTER_PASSWORD
               value: "your-secure-password"
           ports:
