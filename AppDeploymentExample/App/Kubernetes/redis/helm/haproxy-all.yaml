@@ -1,9 +1,9 @@
-# HAProxy с исправленными правами доступа
+# HAProxy с health-check пользователем
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-permissions-fixed
+  name: haproxy-with-healthcheck
   namespace: redis
 data:
   haproxy.cfg: |
@@ -25,30 +25,30 @@ data:
 
     backend redis_backend
         mode tcp
-        balance first
+        balance first  # Только первый доступный (мастер)
         option tcp-check
         option log-health-checks
         
-        # Подключение к Redis
+        # Health check с авторизацией под healthcheck пользователем:
         tcp-check connect
         
-        # Авторизация (пароль будет подставлен через sed)
-        tcp-check send AUTH\ admin\ REDIS_PASSWORD_PLACEHOLDER\r\n
+        # 1. Авторизация под healthcheck пользователем
+        tcp-check send AUTH\ healthcheck\ HEALTHCHECK_PASSWORD_PLACEHOLDER\r\n
         tcp-check expect string +OK
         
-        # Проверка доступности
+        # 2. Проверка доступности
         tcp-check send PING\r\n
         tcp-check expect string +PONG
         
-        # Проверка роли мастера
+        # 3. КРИТИЧЕСКИ ВАЖНО: Проверка роли мастера
         tcp-check send INFO\ replication\r\n
         tcp-check expect string role:master
         
-        # Закрытие соединения
+        # 4. Закрытие соединения
         tcp-check send QUIT\r\n
         tcp-check expect string +OK
         
-        # Redis серверы
+        # Redis серверы - HAProxy выберет ТОЛЬКО МАСТЕР
         server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
         server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
         server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
@@ -57,19 +57,19 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy-permissions-fixed
+  name: haproxy-with-healthcheck
   namespace: redis
   labels:
-    app: haproxy-permissions-fixed
+    app: haproxy-with-healthcheck
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: haproxy-permissions-fixed
+      app: haproxy-with-healthcheck
   template:
     metadata:
       labels:
-        app: haproxy-permissions-fixed
+        app: haproxy-with-healthcheck
     spec:
       containers:
       - name: haproxy
@@ -78,57 +78,50 @@ spec:
         - containerPort: 6379
           name: redis
         env:
-        - name: REDIS_PASSWORD
+        - name: HEALTHCHECK_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: redis-haproxy-secret
-              key: admin-password
+              name: redis-healthcheck-secret
+              key: password
         volumeMounts:
         - name: config-template
           mountPath: /etc/haproxy-template
           readOnly: true
-        # Упрощенный скрипт с использованием /tmp
         command: ["/bin/sh"]
         args:
         - -c
         - |
-          echo "=== HAProxy startup ==="
+          echo "=== HAProxy with healthcheck user ==="
           
-          # Проверяем пароль
-          if [ -z "$REDIS_PASSWORD" ]; then
-            echo "ERROR: REDIS_PASSWORD not set!"
+          # Проверяем что пароль доступен
+          if [ -z "$HEALTHCHECK_PASSWORD" ]; then
+            echo "ERROR: HEALTHCHECK_PASSWORD not set!"
             exit 1
           fi
           
-          echo "Password available, length: ${#REDIS_PASSWORD}"
+          echo "Healthcheck password available, length: ${#HEALTHCHECK_PASSWORD}"
           
-          # Создаем конфиг в /tmp (writable директория)
-          echo "Generating config in /tmp..."
-          sed "s/REDIS_PASSWORD_PLACEHOLDER/$REDIS_PASSWORD/g" \
+          # Подставляем пароль healthcheck пользователя
+          sed "s/HEALTHCHECK_PASSWORD_PLACEHOLDER/$HEALTHCHECK_PASSWORD/g" \
             /etc/haproxy-template/haproxy.cfg > /tmp/haproxy.cfg
           
-          # Проверяем что файл создался
-          if [ ! -f /tmp/haproxy.cfg ]; then
-            echo "ERROR: Failed to create config file!"
-            exit 1
-          fi
-          
           # Проверяем что замена прошла
-          if grep -q "REDIS_PASSWORD_PLACEHOLDER" /tmp/haproxy.cfg; then
-            echo "ERROR: Password not substituted!"
+          if grep -q "HEALTHCHECK_PASSWORD_PLACEHOLDER" /tmp/haproxy.cfg; then
+            echo "ERROR: Password placeholder not replaced!"
             exit 1
           fi
           
-          echo "Config generated successfully"
-          echo "AUTH command: $(grep 'AUTH.*admin' /tmp/haproxy.cfg)"
+          echo "=== Config check ==="
+          echo "AUTH command: $(grep 'AUTH.*healthcheck' /tmp/haproxy.cfg)"
           
-          # Проверяем синтаксис
+          # Проверяем синтаксис HAProxy
           haproxy -f /tmp/haproxy.cfg -c
           if [ $? -eq 0 ]; then
             echo "Config syntax OK, starting HAProxy..."
             exec haproxy -f /tmp/haproxy.cfg
           else
             echo "ERROR: Config syntax error!"
+            cat /tmp/haproxy.cfg
             exit 1
           fi
         resources:
@@ -136,7 +129,7 @@ spec:
             cpu: 100m
             memory: 128Mi
           limits:
-            cpu: 300m
+            cpu: 200m
             memory: 256Mi
         livenessProbe:
           tcpSocket:
@@ -151,7 +144,7 @@ spec:
       volumes:
       - name: config-template
         configMap:
-          name: haproxy-permissions-fixed
+          name: haproxy-with-healthcheck
 
 ---
 apiVersion: v1
@@ -160,12 +153,12 @@ metadata:
   name: redis-external
   namespace: redis
   labels:
-    app: haproxy-permissions-fixed
+    app: haproxy-with-healthcheck
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy-permissions-fixed
+    app: haproxy-with-healthcheck
   ports:
   - name: redis
     port: 6379
