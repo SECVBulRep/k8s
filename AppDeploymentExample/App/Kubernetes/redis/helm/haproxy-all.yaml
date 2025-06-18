@@ -1,9 +1,9 @@
-# haproxy-auth-working.yaml - полная рабочая конфигурация
+# HAProxy с исправленными правами доступа
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-auth-working
+  name: haproxy-permissions-fixed
   namespace: redis
 data:
   haproxy.cfg: |
@@ -57,19 +57,19 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy-auth-working
+  name: haproxy-permissions-fixed
   namespace: redis
   labels:
-    app: haproxy-auth-working
+    app: haproxy-permissions-fixed
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: haproxy-auth-working
+      app: haproxy-permissions-fixed
   template:
     metadata:
       labels:
-        app: haproxy-auth-working
+        app: haproxy-permissions-fixed
     spec:
       containers:
       - name: haproxy
@@ -87,49 +87,48 @@ spec:
         - name: config-template
           mountPath: /etc/haproxy-template
           readOnly: true
-        # Подстановка пароля через sed и запуск HAProxy
+        # Упрощенный скрипт с использованием /tmp
         command: ["/bin/sh"]
         args:
         - -c
         - |
-          echo "=== HAProxy startup script ==="
-          echo "Checking environment..."
+          echo "=== HAProxy startup ==="
           
-          # Проверяем что пароль доступен
+          # Проверяем пароль
           if [ -z "$REDIS_PASSWORD" ]; then
             echo "ERROR: REDIS_PASSWORD not set!"
             exit 1
           fi
           
-          echo "Password length: ${#REDIS_PASSWORD} characters"
+          echo "Password available, length: ${#REDIS_PASSWORD}"
           
-          # Создаем директорию для конфига
-          mkdir -p /usr/local/etc/haproxy
-          
-          # Подставляем пароль через sed
-          echo "Generating HAProxy config..."
+          # Создаем конфиг в /tmp (writable директория)
+          echo "Generating config in /tmp..."
           sed "s/REDIS_PASSWORD_PLACEHOLDER/$REDIS_PASSWORD/g" \
-            /etc/haproxy-template/haproxy.cfg > /usr/local/etc/haproxy/haproxy.cfg
+            /etc/haproxy-template/haproxy.cfg > /tmp/haproxy.cfg
           
-          # Проверяем что замена прошла успешно
-          echo "=== Generated config check ==="
-          if grep -q "REDIS_PASSWORD_PLACEHOLDER" /usr/local/etc/haproxy/haproxy.cfg; then
-            echo "ERROR: Password placeholder not replaced!"
+          # Проверяем что файл создался
+          if [ ! -f /tmp/haproxy.cfg ]; then
+            echo "ERROR: Failed to create config file!"
             exit 1
           fi
           
-          echo "AUTH line in config:"
-          grep "AUTH.*admin" /usr/local/etc/haproxy/haproxy.cfg || echo "AUTH line not found"
+          # Проверяем что замена прошла
+          if grep -q "REDIS_PASSWORD_PLACEHOLDER" /tmp/haproxy.cfg; then
+            echo "ERROR: Password not substituted!"
+            exit 1
+          fi
           
-          # Проверяем синтаксис конфига
-          echo "Checking HAProxy config syntax..."
-          haproxy -f /usr/local/etc/haproxy/haproxy.cfg -c
+          echo "Config generated successfully"
+          echo "AUTH command: $(grep 'AUTH.*admin' /tmp/haproxy.cfg)"
           
+          # Проверяем синтаксис
+          haproxy -f /tmp/haproxy.cfg -c
           if [ $? -eq 0 ]; then
             echo "Config syntax OK, starting HAProxy..."
-            exec haproxy -f /usr/local/etc/haproxy/haproxy.cfg
+            exec haproxy -f /tmp/haproxy.cfg
           else
-            echo "ERROR: HAProxy config syntax error!"
+            echo "ERROR: Config syntax error!"
             exit 1
           fi
         resources:
@@ -144,19 +143,15 @@ spec:
             port: 6379
           initialDelaySeconds: 30
           periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
         readinessProbe:
           tcpSocket:
             port: 6379
           initialDelaySeconds: 10
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
       volumes:
       - name: config-template
         configMap:
-          name: haproxy-auth-working
+          name: haproxy-permissions-fixed
 
 ---
 apiVersion: v1
@@ -165,12 +160,12 @@ metadata:
   name: redis-external
   namespace: redis
   labels:
-    app: haproxy-auth-working
+    app: haproxy-permissions-fixed
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy-auth-working
+    app: haproxy-permissions-fixed
   ports:
   - name: redis
     port: 6379
