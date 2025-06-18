@@ -33,7 +33,7 @@ spec:
             - name: REDIS_MASTER_NAME
               value: mymaster
             - name: REDIS_MASTER_HOST
-              value: "172.16.29.110"
+              value: redis-0.redis-headless.redis.svc.cluster.local
             - name: REDIS_MASTER_PORT_NUMBER
               value: "6379"
             - name: REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS
@@ -43,15 +43,15 @@ spec:
             - name: REDIS_SENTINEL_PARALLEL_SYNCS
               value: "1"
             - name: REDIS_SENTINEL_RESOLVE_HOSTNAMES
-              value: "no"
-            - name: REDIS_SENTINEL_ANNOUNCE_HOSTNAMES
-              value: "no"
+              value: "yes"
             - name: REDIS_SENTINEL_ANNOUNCE_IP
               value: "172.16.29.110"
             - name: REDIS_SENTINEL_ANNOUNCE_PORT
               value: "6379"
             - name: REDIS_SENTINEL_PORT_NUMBER
               value: "26379"
+            - name: REDIS_MASTER_PASSWORD
+              value: "your-secure-password"
           ports:
             - name: redis-sentinel
               containerPort: 26379
