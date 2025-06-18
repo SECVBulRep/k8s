@@ -1,21 +1,23 @@
-# Чистый HAProxy без статистики - только Redis
+# haproxy-auth-working.yaml - полная рабочая конфигурация
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-clean-config
+  name: haproxy-auth-working
   namespace: redis
 data:
   haproxy.cfg: |
     global
         daemon
         maxconn 1000
+        log stdout local0 info
 
     defaults
         mode tcp
         timeout connect 5000ms
         timeout client 50000ms
         timeout server 50000ms
+        log global
 
     frontend redis_frontend
         bind *:6379
@@ -25,17 +27,20 @@ data:
         mode tcp
         balance first
         option tcp-check
+        option log-health-checks
         
-        # Подключение и авторизация
+        # Подключение к Redis
         tcp-check connect
-        tcp-check send AUTH\ admin\ ${ADMIN_PASSWORD}\r\n
+        
+        # Авторизация (пароль будет подставлен через sed)
+        tcp-check send AUTH\ admin\ REDIS_PASSWORD_PLACEHOLDER\r\n
         tcp-check expect string +OK
         
         # Проверка доступности
         tcp-check send PING\r\n
         tcp-check expect string +PONG
         
-        # Проверка что это мастер
+        # Проверка роли мастера
         tcp-check send INFO\ replication\r\n
         tcp-check expect string role:master
         
@@ -44,27 +49,27 @@ data:
         tcp-check expect string +OK
         
         # Redis серверы
-        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 3s
-        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 3s
-        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 3s
+        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
+        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
+        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy-clean
+  name: haproxy-auth-working
   namespace: redis
   labels:
-    app: haproxy-clean
+    app: haproxy-auth-working
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: haproxy-clean
+      app: haproxy-auth-working
   template:
     metadata:
       labels:
-        app: haproxy-clean
+        app: haproxy-auth-working
     spec:
       containers:
       - name: haproxy
@@ -73,43 +78,85 @@ spec:
         - containerPort: 6379
           name: redis
         env:
-        - name: ADMIN_PASSWORD
+        - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: redis-haproxy-secret
               key: admin-password
         volumeMounts:
-        - name: config
-          mountPath: /usr/local/etc/haproxy
+        - name: config-template
+          mountPath: /etc/haproxy-template
           readOnly: true
+        # Подстановка пароля через sed и запуск HAProxy
         command: ["/bin/sh"]
         args:
         - -c
         - |
-          apk add --no-cache gettext
-          envsubst '${ADMIN_PASSWORD}' < /usr/local/etc/haproxy/haproxy.cfg > /tmp/haproxy.cfg
-          exec haproxy -f /tmp/haproxy.cfg
+          echo "=== HAProxy startup script ==="
+          echo "Checking environment..."
+          
+          # Проверяем что пароль доступен
+          if [ -z "$REDIS_PASSWORD" ]; then
+            echo "ERROR: REDIS_PASSWORD not set!"
+            exit 1
+          fi
+          
+          echo "Password length: ${#REDIS_PASSWORD} characters"
+          
+          # Создаем директорию для конфига
+          mkdir -p /usr/local/etc/haproxy
+          
+          # Подставляем пароль через sed
+          echo "Generating HAProxy config..."
+          sed "s/REDIS_PASSWORD_PLACEHOLDER/$REDIS_PASSWORD/g" \
+            /etc/haproxy-template/haproxy.cfg > /usr/local/etc/haproxy/haproxy.cfg
+          
+          # Проверяем что замена прошла успешно
+          echo "=== Generated config check ==="
+          if grep -q "REDIS_PASSWORD_PLACEHOLDER" /usr/local/etc/haproxy/haproxy.cfg; then
+            echo "ERROR: Password placeholder not replaced!"
+            exit 1
+          fi
+          
+          echo "AUTH line in config:"
+          grep "AUTH.*admin" /usr/local/etc/haproxy/haproxy.cfg || echo "AUTH line not found"
+          
+          # Проверяем синтаксис конфига
+          echo "Checking HAProxy config syntax..."
+          haproxy -f /usr/local/etc/haproxy/haproxy.cfg -c
+          
+          if [ $? -eq 0 ]; then
+            echo "Config syntax OK, starting HAProxy..."
+            exec haproxy -f /usr/local/etc/haproxy/haproxy.cfg
+          else
+            echo "ERROR: HAProxy config syntax error!"
+            exit 1
+          fi
         resources:
           requests:
             cpu: 100m
             memory: 128Mi
           limits:
-            cpu: 200m
+            cpu: 300m
             memory: 256Mi
         livenessProbe:
           tcpSocket:
             port: 6379
           initialDelaySeconds: 30
           periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           tcpSocket:
             port: 6379
           initialDelaySeconds: 10
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
       volumes:
-      - name: config
+      - name: config-template
         configMap:
-          name: haproxy-clean-config
+          name: haproxy-auth-working
 
 ---
 apiVersion: v1
@@ -118,12 +165,12 @@ metadata:
   name: redis-external
   namespace: redis
   labels:
-    app: haproxy-clean
+    app: haproxy-auth-working
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy-clean
+    app: haproxy-auth-working
   ports:
   - name: redis
     port: 6379
