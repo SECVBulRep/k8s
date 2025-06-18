@@ -1,0 +1,107 @@
+# redis-values-ot.yaml
+# Конфигурация для Redis Replication через OT Helm chart
+
+# Redis конфигурация
+redisReplication:
+  enabled: true
+  name: redis-replication
+  
+  # Размер кластера
+  clusterSize: 3
+  
+  # Образ Redis
+  image:
+    name: quay.io/opstree/redis
+    tag: v7.2.3
+    pullPolicy: IfNotPresent
+  
+  # Ресурсы
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  
+  # Storage
+  storage:
+    enabled: true
+    size: 8Gi
+    storageClassName: longhorn
+  
+  # Redis конфигурация
+  redisConfig:
+    maxmemory: "1gb"
+    maxmemoryPolicy: "allkeys-lru"
+    timeout: "300"
+    tcpKeepalive: "60"
+    save: "900 1 300 10"
+    appendonly: "yes"
+  
+  # Внешний доступ
+  service:
+    type: ClusterIP  # Мы создадим отдельный LoadBalancer
+  
+  # Anti-affinity
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis-replication
+          topologyKey: kubernetes.io/hostname
+  
+  # PDB
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# Sentinel конфигурация
+redisSentinel:
+  enabled: true
+  name: redis-sentinel
+  
+  # Размер Sentinel кластера
+  clusterSize: 3
+  
+  # Образ Sentinel
+  image:
+    name: quay.io/opstree/redis-sentinel
+    tag: v7.2.3
+    pullPolicy: IfNotPresent
+  
+  # Ресурсы
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  # Sentinel конфигурация
+  sentinelConfig:
+    masterGroupName: mymaster
+    quorum: 2
+    parallelSyncs: 1
+    failoverTimeout: 10000
+    downAfterMilliseconds: 5000
+  
+  # Anti-affinity для Sentinel
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: redis-sentinel
+        topologyKey: kubernetes.io/hostname
+
+# Мониторинг (опционально)
+monitoring:
+  enabled: false
+
+# Namespace где будет развёрнут Redis
+namespace: redis
