@@ -29,6 +29,6 @@ data:
         tcp-check expect string role:master
         tcp-check send QUIT\r\n
         tcp-check expect string +OK
-        server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s
-        server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s backup
-        server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s backup
+        server redis1 redis-0.redis-headless.redis.svc.cluster.local:6379 check inter 2s rise 2 fall 3
+        server redis2 redis-1.redis-headless.redis.svc.cluster.local:6379 check inter 2s rise 2 fall 3 backup
+        server redis3 redis-2.redis-headless.redis.svc.cluster.local:6379 check inter 2s rise 2 fall 3 backup
