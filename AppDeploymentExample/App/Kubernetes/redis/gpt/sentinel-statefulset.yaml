@@ -28,8 +28,11 @@ spec:
       containers:
         - name: sentinel
           image: redis:7.2
-          command: ["redis-sentinel"]
-          args: ["/etc/redis-conf/sentinel.conf"]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              cp /etc/redis-conf/sentinel.conf /data/sentinel.conf
+              redis-sentinel /data/sentinel.conf
           env:
             - name: REDIS_MASTER_PASSWORD
               value: "your-secure-password"
@@ -40,7 +43,7 @@ spec:
             - name: sentinel-config
               mountPath: /etc/redis-conf
             - name: sentinel-data
-              mountPath: /tmp
+              mountPath: /data
       volumes:
         - name: sentinel-config
           configMap:
