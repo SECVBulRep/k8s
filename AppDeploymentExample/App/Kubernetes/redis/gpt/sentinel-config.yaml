@@ -1,4 +1,3 @@
-# test
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,3 +13,5 @@ data:
     sentinel failover-timeout mymaster 10000
     sentinel resolve-hostnames yes
     sentinel auth-pass mymaster your-secure-password
+    sentinel announce-ip 172.16.29.110
+    sentinel announce-port 6379

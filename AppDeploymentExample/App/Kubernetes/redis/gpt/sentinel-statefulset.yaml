@@ -1,4 +1,3 @@
-#!
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -33,7 +32,8 @@ spec:
           args:
             - |
               cp /etc/redis-conf/sentinel.conf /data/sentinel.conf
-              redis-sentinel /data/sentinel.conf --sentinel announce-ip 172.16.29.110 --sentinel announce-port 6379
+              echo "config-rewrite no" >> /data/sentinel.conf
+              redis-sentinel /data/sentinel.conf
           env:
             - name: REDIS_MASTER_PASSWORD
               value: "your-secure-password"
