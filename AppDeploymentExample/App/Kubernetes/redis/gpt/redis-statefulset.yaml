@@ -33,7 +33,7 @@ spec:
           args:
             - "redis-server"
             - "/etc/redis/redis.conf"
-          command: ["sh", "-c", "if [ \"${HOSTNAME}\" = \"redis-0\" ]; then redis-server /etc/redis/redis.conf; else redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379; fi"]
+          command: ["sh", "-c", "if [ \"${HOSTNAME}\" = \"redis-0\" ]; then redis-server /etc/redis/redis.conf; else redis-server /etc/redis/redis.conf --replicaof redis-0.redis-headless.redis.svc.cluster.local 6379 --masterauth your-secure-password; fi"]
           ports:
             - containerPort: 6379
           volumeMounts:
