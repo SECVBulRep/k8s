@@ -1,13 +1,17 @@
-# redis-values.yaml
-# Оптимизировано для твоего кластера с MetalLB
+# redis-3nodes.yaml
+# Конфигурация Redis с 3 нодами (1 master + 2 replicas)
 
-# Архитектура: replication с Sentinel
+# Архитектура: replication с Sentinel для HA
 architecture: replication
 
-# Авторизация (отключена для тестирования)
+# Авторизация
 auth:
   enabled: false
-  # password: "your-secure-password"  # Включите для production
+  # password: "StrongPassword123"  # Раскомментируйте для production
+
+# Глобальные настройки StorageClass
+global:
+  storageClass: "longhorn"
 
 # Master конфигурация
 master:
@@ -15,8 +19,6 @@ master:
   persistence:
     enabled: true
     size: 8Gi
-    # Если у вас есть определённый storageClass, укажите здесь
-    # storageClass: "longhorn"  # например
   resources:
     requests:
       memory: "256Mi"
@@ -26,25 +28,19 @@ master:
       cpu: "500m"
   service:
     type: LoadBalancer
-    loadBalancerIP: "172.16.29.110"  # Фиксируем IP из redis-pool
+    loadBalancerIP: "172.16.29.110"
     annotations:
       metallb.universe.tf/address-pool: "redis-pool"
     ports:
       redis: 6379
-  # Распределение по нодам
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/component: master
-          topologyKey: kubernetes.io/hostname
+  # Гарантируем распределение по разным нодам
+  podAntiAffinityPreset: hard
 
-# Replica конфигурация  
+# Replica конфигурация - ЗДЕСЬ указываем количество реплик
 replica:
-  replicaCount: 2  # Изменено: теперь будет 3 ноды (1 master + 2 replicas)
+  # ВАЖНО: 2 реплики + 1 master = 3 ноды всего
+  replicaCount: 2
+  
   persistence:
     enabled: true
     size: 8Gi
@@ -56,24 +52,26 @@ replica:
       memory: "1Gi"
       cpu: "500m"
   service:
-    type: ClusterIP  # Replicas только внутри кластера
-  affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/component: replica
-          topologyKey: kubernetes.io/hostname
+    type: ClusterIP
+  # Гарантируем распределение по разным нодам
+  podAntiAffinityPreset: hard
+  
+  # Автомасштабирование отключено
+  autoscaling:
+    enabled: false
 
 # Sentinel для High Availability
 sentinel:
   enabled: true
-  quorum: 2  # Минимум 2 sentinel должны согласиться для failover
+  # Quorum 2 из 3 для принятия решения о failover
+  quorum: 2
   downAfterMilliseconds: 5000
   failoverTimeout: 10000
   parallelSyncs: 1
+  
+  # 3 Sentinel экземпляра (по одному в каждом поде)
+  # Это автоматически, так как Sentinel запускается как sidecar
+  
   resources:
     requests:
       memory: "64Mi"
@@ -81,37 +79,42 @@ sentinel:
     limits:
       memory: "256Mi"
       cpu: "200m"
+  
   service:
     type: LoadBalancer
-    loadBalancerIP: "172.16.29.111"  # Второй IP из redis-pool
+    loadBalancerIP: "172.16.29.111"
     annotations:
       metallb.universe.tf/address-pool: "redis-pool"
     ports:
       sentinel: 26379
-  # Sentinel тоже распределяем по нодам
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchLabels:
-            app.kubernetes.io/component: sentinel
-        topologyKey: kubernetes.io/hostname
 
-# Метрики (опционально, для мониторинга)
-metrics:
-  enabled: false
-  # Включите если используете Prometheus
-  # serviceMonitor:
-  #   enabled: true
-
-# Общие настройки
+# Дополнительная конфигурация Redis
 commonConfiguration: |-
-  # Оптимизация под ваш кластер
+  # Оптимизация памяти
   maxmemory 1gb
   maxmemory-policy allkeys-lru
+  
+  # Сетевые настройки
   timeout 300
   tcp-keepalive 60
   
-# Параметры для production
-# persistence:
-#   existingClaim: ""  # Если есть существующие PVC
+  # Настройки репликации
+  repl-diskless-sync yes
+  repl-diskless-sync-delay 5
+
+# Метрики (отключены, включите при необходимости)
+metrics:
+  enabled: false
+  
+# Сетевая политика (отключена для простоты)
+networkPolicy:
+  enabled: false
+
+# Проверка готовности с увеличенными таймаутами
+readinessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
+  
+livenessProbe:
+  initialDelaySeconds: 30
+  timeoutSeconds: 5
