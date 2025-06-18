@@ -1,16 +1,15 @@
-# HAProxy с детальной отладкой и правильными health checks
+# HAProxy production-ready версия (без отладки, 2 реплики)
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: haproxy-debug-detailed
+  name: haproxy-production
   namespace: redis
 data:
   haproxy.cfg: |
     global
         daemon
         maxconn 1000
-        log stdout local0 debug
 
     defaults
         mode tcp
@@ -18,7 +17,6 @@ data:
         timeout client 50000ms
         timeout server 50000ms
         timeout check 5000ms
-        log global
 
     frontend redis_frontend
         bind *:6379
@@ -28,9 +26,8 @@ data:
         mode tcp
         balance first
         option tcp-check
-        option log-health-checks
         
-        # Health checks с отладкой
+        # Health checks с healthcheck пользователем
         tcp-check connect
         tcp-check send "AUTH healthcheck HEALTHCHECK_PASSWORD_PLACEHOLDER\r\n"
         tcp-check expect string "+OK"
@@ -41,28 +38,28 @@ data:
         tcp-check send "QUIT\r\n"
         tcp-check expect string "+OK"
         
-        # Более мягкие настройки серверов
-        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
-        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
-        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 10s fall 5 rise 2
+        # Redis серверы
+        server redis-0 redis-node-0.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
+        server redis-1 redis-node-1.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
+        server redis-2 redis-node-2.redis-headless.redis.svc.cluster.local:6379 check inter 5s fall 3 rise 2
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: haproxy-debug-detailed
+  name: haproxy-production
   namespace: redis
   labels:
-    app: haproxy-debug-detailed
+    app: haproxy-production
 spec:
-  replicas: 2  # Только 1 для отладки
+  replicas: 2  # ДВА экземпляра для высокой доступности
   selector:
     matchLabels:
-      app: haproxy-debug-detailed
+      app: haproxy-production
   template:
     metadata:
       labels:
-        app: haproxy-debug-detailed
+        app: haproxy-production
     spec:
       containers:
       - name: haproxy
@@ -84,42 +81,12 @@ spec:
         args:
         - -c
         - |
-          echo "=== HAProxy DEBUG version ==="
-          
-          if [ -z "$HEALTHCHECK_PASSWORD" ]; then
-            echo "ERROR: Password not available!"
-            exit 1
-          fi
-          
-          echo "Password: ${HEALTHCHECK_PASSWORD}"
-          
           # Подставляем пароль
           sed "s/HEALTHCHECK_PASSWORD_PLACEHOLDER/${HEALTHCHECK_PASSWORD}/g" \
             /etc/haproxy-template/haproxy.cfg > /tmp/haproxy.cfg
           
-          echo "=== Final config check ==="
-          grep -A2 -B2 "AUTH.*healthcheck" /tmp/haproxy.cfg
-          
-          # Проверяем синтаксис
-          haproxy -f /tmp/haproxy.cfg -c
-          if [ $? -ne 0 ]; then
-            echo "Config syntax error!"
-            cat /tmp/haproxy.cfg
-            exit 1
-          fi
-          
-          # Тестируем сетевую связность ПЕРЕД запуском HAProxy
-          echo "=== Network connectivity test ==="
-          nc -zv redis-node-0.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-0 unreachable"
-          nc -zv redis-node-1.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-1 unreachable"
-          nc -zv redis-node-2.redis-headless.redis.svc.cluster.local 6379 || echo "redis-node-2 unreachable"
-          
-          # Тестируем health check команды вручную
-          echo "=== Manual health check test ==="
-          timeout 5 sh -c "echo 'AUTH healthcheck ${HEALTHCHECK_PASSWORD}' | nc redis-node-0.redis-headless.redis.svc.cluster.local 6379" | head -1 || echo "Manual AUTH failed"
-          
-          echo "Starting HAProxy with debug..."
-          exec haproxy -f /tmp/haproxy.cfg -db  # -db включает debug логи
+          # Запускаем HAProxy
+          exec haproxy -f /tmp/haproxy.cfg
         resources:
           requests:
             cpu: 100m
@@ -130,17 +97,17 @@ spec:
         livenessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 60  # Больше времени для отладки
+          initialDelaySeconds: 30
           periodSeconds: 30
         readinessProbe:
           tcpSocket:
             port: 6379
-          initialDelaySeconds: 30
+          initialDelaySeconds: 10
           periodSeconds: 10
       volumes:
       - name: config-template
         configMap:
-          name: haproxy-debug-detailed
+          name: haproxy-production
 
 ---
 apiVersion: v1
@@ -149,12 +116,12 @@ metadata:
   name: redis-external
   namespace: redis
   labels:
-    app: haproxy-debug-detailed
+    app: haproxy-production
 spec:
   type: LoadBalancer
   loadBalancerIP: "172.16.29.110"
   selector:
-    app: haproxy-debug-detailed
+    app: haproxy-production
   ports:
   - name: redis
     port: 6379
