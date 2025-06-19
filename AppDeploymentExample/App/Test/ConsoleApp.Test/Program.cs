@@ -22,7 +22,7 @@ namespace RedisTestApp
                 await TestBasicOperations();
                 
                 // Информация о сервере
-                await ShowServerInfo();
+                //await ShowServerInfo();
                 
                 Console.WriteLine("\n✅ Все операции выполнены успешно!");
             }
@@ -47,7 +47,7 @@ namespace RedisTestApp
             var config = new ConfigurationOptions
             {
                 EndPoints = { "172.16.29.110:6379" },
-                User = "admin",  // ACL пользователь
+                User = "admin-user",  // ACL пользователь
                 Password = GetRedisPassword(), // Пароль admin пользователя
                 ConnectTimeout = 5000,
                 SyncTimeout = 5000,
@@ -69,7 +69,7 @@ namespace RedisTestApp
 
         static string GetRedisPassword()
         {
-            return "ihiamy18niwtsCmejqaw1YAG6";
+            return "admin-secure-password";
         }
 
         static async Task TestBasicOperations()
