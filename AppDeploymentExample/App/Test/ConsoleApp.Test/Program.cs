@@ -11,24 +11,25 @@ namespace RedisTestApp
 
         static async Task Main(string[] args)
         {
-            Console.WriteLine("=== Redis .NET Test Application ===\n");
+            Console.WriteLine("=== Redis .NET Test Application с авторизацией ===\n");
 
             try
             {
-                // Подключение к Redis через HAProxy
+                // Подключение к Redis через HAProxy с авторизацией
                 await ConnectToRedis();
                 
                 // Тестирование базовых операций
                 await TestBasicOperations();
                 
                 // Информация о сервере
-                //await ShowServerInfo();
+                await ShowServerInfo();
                 
                 Console.WriteLine("\n✅ Все операции выполнены успешно!");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Ошибка: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
             }
             finally
             {
@@ -40,17 +41,35 @@ namespace RedisTestApp
 
         static async Task ConnectToRedis()
         {
-            Console.WriteLine("🔗 Подключение к Redis...");
+            Console.WriteLine("🔗 Подключение к Redis с авторизацией...");
             
-            var config = ConfigurationOptions.Parse("172.16.29.110:6379");
-            config.ConnectTimeout = 5000;
-            config.SyncTimeout = 5000;
-            config.AbortOnConnectFail = false;
+            // ВАРИАНТ 1: Через ConfigurationOptions (рекомендуемо для ACL)
+            var config = new ConfigurationOptions
+            {
+                EndPoints = { "172.16.29.110:6379" },
+                User = "admin",  // ACL пользователь
+                Password = GetRedisPassword(), // Пароль admin пользователя
+                ConnectTimeout = 5000,
+                SyncTimeout = 5000,
+                AbortOnConnectFail = false,
+                ConnectRetry = 3
+            };
 
+            // ВАРИАНТ 2: Через строку подключения (альтернатива)
+            // var config = ConfigurationOptions.Parse($"172.16.29.110:6379,user=admin,password={GetRedisPassword()}");
+
+            Console.WriteLine($"Подключаемся как пользователь: {config.User}");
+            
             redis = await ConnectionMultiplexer.ConnectAsync(config);
             db = redis.GetDatabase();
             
             Console.WriteLine($"✅ Подключен к Redis: {redis.GetEndPoints()[0]}");
+            Console.WriteLine($"✅ Авторизован как: {config.User}");
+        }
+
+        static string GetRedisPassword()
+        {
+            return "ihiamy18niwtsCmejqaw1YAG6";
         }
 
         static async Task TestBasicOperations()
@@ -58,7 +77,7 @@ namespace RedisTestApp
             Console.WriteLine("\n📝 Тестирование базовых операций:");
 
             // SET операция
-            string key = "test:app:timestamp";
+            string key = "test:dotnet:timestamp";
             string value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             
             await db!.StringSetAsync(key, value);
@@ -71,16 +90,17 @@ namespace RedisTestApp
             // Множественная запись
             var batch = new KeyValuePair<RedisKey, RedisValue>[]
             {
-                new("app:counter", 42),
-                new("app:name", "Redis .NET Client"),
-                new("app:version", "1.0.0")
+                new("dotnet:counter", 42),
+                new("dotnet:name", "Redis .NET Client with Auth"),
+                new("dotnet:version", "2.0.0"),
+                new("dotnet:user", "admin")
             };
 
             await db.StringSetAsync(batch);
             Console.WriteLine("✅ Записано несколько ключей");
 
             // Множественное чтение
-            var keys = new RedisKey[] { "app:counter", "app:name", "app:version" };
+            var keys = new RedisKey[] { "dotnet:counter", "dotnet:name", "dotnet:version", "dotnet:user" };
             var values = await db.StringGetAsync(keys);
             
             for (int i = 0; i < keys.Length; i++)
@@ -89,44 +109,77 @@ namespace RedisTestApp
             }
 
             // Инкремент
-            var newCounter = await db.StringIncrementAsync("app:counter", 10);
-            Console.WriteLine($"INCR app:counter +10 = {newCounter}");
+            var newCounter = await db.StringIncrementAsync("dotnet:counter", 10);
+            Console.WriteLine($"INCR dotnet:counter +10 = {newCounter}");
+
+            // Работа со списками
+            await db.ListLeftPushAsync("dotnet:logs", $"Login at {DateTime.Now}");
+            await db.ListLeftPushAsync("dotnet:logs", $"Operation at {DateTime.Now}");
+            var logCount = await db.ListLengthAsync("dotnet:logs");
+            Console.WriteLine($"LIST dotnet:logs длина = {logCount}");
+
+            var latestLog = await db.ListRightPopAsync("dotnet:logs");
+            Console.WriteLine($"Последний лог: {latestLog}");
+
+            // Работа с хешами
+            await db.HashSetAsync("dotnet:config", new HashEntry[]
+            {
+                new("timeout", 30),
+                new("retries", 3),
+                new("environment", "production")
+            });
+
+            var timeout = await db.HashGetAsync("dotnet:config", "timeout");
+            Console.WriteLine($"HASH dotnet:config timeout = {timeout}");
 
             // TTL (время жизни)
-            await db.StringSetAsync("temp:key", "expires soon", TimeSpan.FromSeconds(30));
-            var ttl = await db.KeyTimeToLiveAsync("temp:key");
-            Console.WriteLine($"SET temp:key с TTL = {ttl?.TotalSeconds:F0} секунд");
+            await db.StringSetAsync("dotnet:temp", "expires soon", TimeSpan.FromSeconds(30));
+            var ttl = await db.KeyTimeToLiveAsync("dotnet:temp");
+            Console.WriteLine($"SET dotnet:temp с TTL = {ttl?.TotalSeconds:F0} секунд");
         }
 
         static async Task ShowServerInfo()
         {
             Console.WriteLine("\n📊 Информация о сервере:");
 
-            var server = redis!.GetServer(redis.GetEndPoints()[0]);
-            
-            // Основная информация
-            var info = await server.InfoAsync("replication");
-            foreach (var group in info)
+            try
             {
-                foreach (var item in group)
+                var server = redis!.GetServer(redis.GetEndPoints()[0]);
+                
+                // Основная информация о репликации
+                var info = await server.InfoAsync("replication");
+                foreach (var group in info)
                 {
-                    if (item.Key == "role" || item.Key == "connected_slaves")
+                    foreach (var item in group)
                     {
-                        Console.WriteLine($"{item.Key}: {item.Value}");
+                        if (item.Key == "role" || item.Key == "connected_slaves")
+                        {
+                            Console.WriteLine($"{item.Key}: {item.Value}");
+                        }
                     }
                 }
-            }
 
-            // Проверка производительности
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            await db!.StringGetAsync("test:latency");
-            stopwatch.Stop();
-            
-            Console.WriteLine($"Latency: {stopwatch.ElapsedMilliseconds} ms");
-            
-            // Количество ключей
-            var keyCount = await server.DatabaseSizeAsync();
-            Console.WriteLine($"Всего ключей в БД: {keyCount}");
+                // Проверка производительности
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                await db!.StringGetAsync("test:latency");
+                stopwatch.Stop();
+                
+                Console.WriteLine($"Latency: {stopwatch.ElapsedMilliseconds} ms");
+                
+                // Количество ключей
+                var keyCount = await server.DatabaseSizeAsync();
+                Console.WriteLine($"Всего ключей в БД: {keyCount}");
+
+                // Информация о подключении
+                Console.WriteLine($"Endpoint: {redis.GetEndPoints()[0]}");
+                Console.WriteLine($"Статус: {redis.GetStatus()}");
+                Console.WriteLine($"Multiplexer ID: {redis.ClientName}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Не удалось получить информацию о сервере: {ex.Message}");
+                Console.WriteLine("(Это может быть связано с правами пользователя)");
+            }
         }
     }
 }
