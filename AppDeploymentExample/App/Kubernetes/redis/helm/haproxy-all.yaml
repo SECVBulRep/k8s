@@ -27,7 +27,7 @@ data:
         option tcp-check
         # Проверяем что это Redis с аутентификацией
         tcp-check connect
-        tcp-check send AUTH\ haproxy-check-password\r\n
+        tcp-check send AUTH\ haproxy-user\ haproxy-check-password\r\n
         tcp-check expect string +OK
         tcp-check send PING\r\n
         tcp-check expect string +PONG
