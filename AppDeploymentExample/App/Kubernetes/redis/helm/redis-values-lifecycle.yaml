@@ -1,0 +1,38 @@
+auth:
+  enabled: true
+  password: "redis-admin-password"
+
+architecture: replication
+replica:
+  replicaCount: 2
+  # Используем lifecycle postStart hook для создания ACL пользователей после запуска Redis
+  lifecycleHooks:
+    postStart:
+      exec:
+        command:
+        - /bin/sh
+        - -c
+        - |
+          sleep 15
+          echo "Создаем ACL пользователей на replica после запуска..."
+          redis-cli -h localhost -p 6379 -a redis-admin-password ACL SETUSER admin-user on '>admin-secure-password' '~*' '&*' '+@all' || true
+          redis-cli -h localhost -p 6379 -a redis-admin-password ACL SETUSER haproxy-user on '>haproxy-check-password' '~*' '+ping' '+info' || true
+          echo "ACL пользователи созданы на replica!"
+
+master:
+  # Используем lifecycle postStart hook для создания ACL пользователей после запуска Redis
+  lifecycleHooks:
+    postStart:
+      exec:
+        command:
+        - /bin/sh
+        - -c
+        - |
+          sleep 15
+          echo "Создаем ACL пользователей на master после запуска..."
+          redis-cli -h localhost -p 6379 -a redis-admin-password ACL SETUSER admin-user on '>admin-secure-password' '~*' '&*' '+@all' || true
+          redis-cli -h localhost -p 6379 -a redis-admin-password ACL SETUSER haproxy-user on '>haproxy-check-password' '~*' '+ping' '+info' || true
+          echo "ACL пользователи созданы на master!"
+
+sentinel:
+  enabled: true
