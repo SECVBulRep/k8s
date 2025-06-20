@@ -1,9 +1,6 @@
-# Настройка Redis HA с HAProxy и автоматическими ACL пользователями
-
-## Предварительные настройки
-
-### MetalLB конфигурация
-```yaml
+Настройка Redis HA с HAProxy и автоматическими ACL пользователями
+Предварительные настройки
+MetalLB конфигурация
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
@@ -21,11 +18,7 @@ metadata:
 spec:
   ipAddressPools:
   - redis-pool
-```
-
-## Установка Redis кластера с автоматическими ACL пользователями
-
-```bash
+Установка Redis кластера с автоматическими ACL пользователями
 # Создаем namespace
 kubectl create namespace redis
 
@@ -101,13 +94,9 @@ for node in redis-node-0 redis-node-1 redis-node-2; do
 done
 
 # Запоминаем какая нода является master (обычно redis-node-0)
-```
+Создание HAProxy с аутентификацией
+✅ ACL пользователи уже созданы автоматически на всех нодах через lifecycle hooks!
 
-## Создание HAProxy с аутентификацией
-
-**✅ ACL пользователи уже созданы автоматически на всех нодах через lifecycle hooks!**
-
-```bash
 # Создаём файл haproxy-all.yaml
 cat > haproxy-all.yaml << 'EOF'
 # ConfigMap с конфигурацией HAProxy
@@ -234,11 +223,7 @@ kubectl get pods -n redis -l app=haproxy
 # Проверяем логи HAProxy
 kubectl logs -n redis -l app=haproxy --tail=20
 # Должны увидеть что один из redis серверов UP (master), остальные DOWN (slaves)
-```
-
-## Проверка и тестирование
-
-```bash
+Проверка и тестирование
 # Проверяем все сервисы
 kubectl get svc -n redis
 
@@ -280,15 +265,10 @@ echo "Настройка завершена! У вас есть:"
 echo "- Администратор: admin-user / admin-secure-password (полные права)"
 echo "- HAProxy пользователь: haproxy-user / haproxy-check-password (только INFO и PING)"
 echo "- Автоматическое создание пользователей на всех нодах при запуске"
-```
+Автоматическое восстановление после failover
+✅ ПОЛНОСТЬЮ АВТОМАТИЧЕСКОЕ: ACL пользователи автоматически присутствуют на всех нодах благодаря lifecycle hooks!
 
-## Автоматическое восстановление после failover
-
-**✅ ПОЛНОСТЬЮ АВТОМАТИЧЕСКОЕ:** ACL пользователи автоматически присутствуют на всех нодах благодаря lifecycle hooks!
-
-### Тестирование автоматического failover:
-
-```bash
+Тестирование автоматического failover:
 # 1. Проверяем текущее размещение подов
 kubectl get pods -n redis -o wide
 
