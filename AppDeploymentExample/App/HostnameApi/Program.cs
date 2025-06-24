@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
+using SeedWork.Redis;
 using Serilog;
 using Serilog.Events;
 
@@ -31,7 +32,8 @@ public class Program
             .AddEnvironmentVariables();
 
         builder.Services.AddOpenApi();
-        builder.Services.AddSingleton<RedisService>();
+        builder.Services.AddSingleton<ProductService>();
+        builder.Services.AddSingleton<IRedisService, RedisService>();
 
         var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
         var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
@@ -59,7 +61,7 @@ public class Program
         Log.Information("PostgresPassword: {pw}", dbPassword);
         Log.Information("Connection string: {conn}", connectionString);
 
-        app.MapGet("/db-test", async ([FromServices] RedisService redisService) =>
+        app.MapGet("/db-test", async ([FromServices] ProductService redisService) =>
         {
             try
             {

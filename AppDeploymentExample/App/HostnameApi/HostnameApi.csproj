@@ -11,7 +11,7 @@
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
-    <PackageReference Include="StackExchange.Redis" Version="2.8.37" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.41" />
 
   </ItemGroup>
 
@@ -20,6 +20,10 @@
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
 </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SeedWork\SeedWork.csproj" />
+  </ItemGroup>
 
 
 
