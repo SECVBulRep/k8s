@@ -1,11 +1,18 @@
-# Используем официальный SDK образ для сборки
+# Сборочный этап
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
-COPY . .
-RUN dotnet publish -c Release -o out
 
-# Используем рантайм-образ
+# Копируем проекты
+COPY HostnameApi/ ./HostnameApi
+COPY SeedWork/ ./SeedWork
+
+# Переходим в директорию HostnameApi и публикуем
+WORKDIR /app/HostnameApi
+RUN dotnet publish -c Release -o /app/out
+
+# Рантайм
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 COPY --from=build /app/out .
+
 ENTRYPOINT ["dotnet", "HostnameApi.dll"]

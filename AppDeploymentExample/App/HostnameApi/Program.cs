@@ -1,4 +1,6 @@
 using System.Net;
+using HostnameApi.Consumers;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Npgsql;
 using SeedWork.Redis;
@@ -35,6 +37,49 @@ public class Program
         builder.Services.AddSingleton<ProductService>();
         builder.Services.AddSingleton<IRedisService, RedisService>();
 
+        
+        builder.Services.AddMassTransit(x =>
+        {
+            // Регистрируем Consumer
+            x.AddConsumer<WeatherRequestedConsumer>();
+
+            x.UsingRabbitMq((context, cfg) =>
+            {
+                
+                var host = builder.Configuration["RabbitMQ:Host"];
+                var port =  ushort.Parse(builder.Configuration["RabbitMQ:Port"]);
+                var virtualHost = builder.Configuration["RabbitMQ:VirtualHost"];
+                var username = builder.Configuration["RabbitMQ:Username"];
+                var password = builder.Configuration["RabbitMQ:Password"];
+                
+                // Подключение к RabbitMQ кластеру
+                cfg.Host(host, port, virtualHost, h =>
+                {
+                    h.Username(username);
+                    h.Password(password);
+                });
+
+                // Конфигурация очереди для обработки событий
+                cfg.ReceiveEndpoint("weather-requests", e =>
+                {
+                    // Персистентность и надежность (ПЕРЕД ConfigureConsumer!)
+                    e.Durable = true;
+                    e.AutoDelete = false;
+                    
+                    // Retry policy
+                    e.UseMessageRetry(r => r.Intervals(
+                        TimeSpan.FromSeconds(2),
+                        TimeSpan.FromSeconds(5),
+                        TimeSpan.FromSeconds(10)
+                    ));
+                    
+                    // Consumer конфигурация в конце
+                    e.ConfigureConsumer<WeatherRequestedConsumer>(context);
+                });
+            });
+        });
+        
+        
         var dbHost = builder.Configuration["ConnectionStrings:PostgresHost"];
         var dbPort = builder.Configuration["ConnectionStrings:PostgresPort"];
         var dbName = builder.Configuration["ConnectionStrings:PostgresDb"];
@@ -105,8 +150,36 @@ public class Program
             }
         });
 
+        app.MapGet("/weather-stats", async ([FromServices] IRedisService redisService) =>
+        {
+            try
+            {
+                var totalCount = await redisService.GetAsync<long>("weather:requests:total");
+                var todayCount = await redisService.GetAsync<long>($"weather:requests:daily:{DateTime.UtcNow:yyyy-MM-dd}");
+                var thisHourCount = await redisService.GetAsync<long>($"weather:requests:hourly:{DateTime.UtcNow:yyyy-MM-dd-HH}");
+                
+                return Results.Ok(new
+                {
+                    TotalRequests = totalCount,
+                    TodayRequests = todayCount,
+                    ThisHourRequests = thisHourCount,
+                    LastUpdated = DateTime.UtcNow,
+                    Hostname = System.Net.Dns.GetHostName(),
+                    Date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    Hour = DateTime.UtcNow.ToString("HH:mm")
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error getting weather statistics");
+                return Results.Problem("Failed to get statistics: " + ex.Message);
+            }
+        });
+        
+        
         app.MapGet("/ver", () => Results.Ok(15));
-
+        app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Service = "WeatherApi", Time = DateTime.UtcNow }));
+        
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();

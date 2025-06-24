@@ -1,6 +1,14 @@
 1) Сбор образа и пуш 
-docker build -t secvbulrep/api_weather:latest .
+
+для api_weather cd C:\Projects\MyGit\k8s\AppDeploymentExample\App
+
+docker build -f HostnameApi/Dockerfile -t secvbulrep/api_weather:latest .
 docker push secvbulrep/api_weather:latest
+
+
+docker build -f WeatherProxy/Dockerfile -t secvbulrep/weather-proxy:latest .
+docker push secvbulrep/weather-proxy:latest
+
 
 2) просмотр всех ingress   контроллеров
 kubectl get pods -n ingress-nginx -o wide

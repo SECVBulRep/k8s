@@ -13,7 +13,7 @@ public class RedisService : IRedisService, IDisposable
     public RedisService(IConfiguration configuration)
     {
         _configuration = configuration;
-        _keyPrefix = _configuration["Redis:KeyPrefix"] ;
+        _keyPrefix = _configuration["Redis:KeyPrefix"];
         _lazyConnection = new Lazy<Task<ConnectionMultiplexer>>(ConnectAsync);
     }
 
@@ -38,7 +38,7 @@ public class RedisService : IRedisService, IDisposable
     {
         if (string.IsNullOrEmpty(_keyPrefix))
             return key;
-        
+
         return $"{_keyPrefix}:{key}";
     }
 
@@ -111,5 +111,20 @@ public class RedisService : IRedisService, IDisposable
         {
             _lazyConnection.Value.Result?.Dispose();
         }
+    }
+
+    // Новые методы для счетчиков
+    public async Task<long> IncrementAsync(string key)
+    {
+        var db = await GetDatabaseAsync();
+        var prefixedKey = GetPrefixedKey(key); 
+        return await db.StringIncrementAsync(prefixedKey);
+    }
+
+    public async Task<long> IncrementByAsync(string key, long value)
+    {
+        var db = await GetDatabaseAsync();
+        var prefixedKey = GetPrefixedKey(key); 
+        return await db.StringIncrementAsync(prefixedKey, value);
     }
 }

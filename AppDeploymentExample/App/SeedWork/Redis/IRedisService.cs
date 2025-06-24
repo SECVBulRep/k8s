@@ -10,4 +10,9 @@ public interface IRedisService
 
     Task SetAsync<T>(string key, T value, TimeSpan? expiry = null);
     Task<T?> GetAsync<T>(string key);
+    
+    // Новые методы для счетчиков
+    Task<long> IncrementAsync(string key);
+    Task<long> IncrementByAsync(string key, long value);
+    Task<bool> SetExpiryAsync(string key, TimeSpan expiry);
 }
