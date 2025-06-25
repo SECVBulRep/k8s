@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: api-weather
-        image: secvbulrep/api_weather:latest
+        image: 172.16.29.104:8083/api_weather:latest
         ports:
         - containerPort: 80
         env:
@@ -45,6 +45,6 @@ spec:
     spec:
       containers:
       - name: weather-proxy
-        image: secvbulrep/weather-proxy:latest
+        image: 172.16.29.104:8083/weather-proxy:latest
         ports:
         - containerPort: 80
