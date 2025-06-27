@@ -177,7 +177,7 @@ public class Program
         });
         
         
-        app.MapGet("/ver", () => Results.Ok(15));
+        app.MapGet("/ver", () => Results.Ok(16));
         app.MapGet("/health", () => Results.Ok(new { Status = "Healthy", Service = "WeatherApi", Time = DateTime.UtcNow }));
         
         if (app.Environment.IsDevelopment())
