@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: weather-proxy
+  template:
+    metadata:
+      labels:
+        app: weather-proxy
+    spec:
+      containers:
+      - name: weather-proxy
+        image: 172.16.29.104:8083/weather-proxy:latest
+        ports:
+        - containerPort: 80
