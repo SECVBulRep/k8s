@@ -15,5 +15,6 @@ spec:
       containers:
       - name: weather-proxy
         image: 172.16.29.104:8083/weather-proxy:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80

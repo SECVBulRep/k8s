@@ -15,6 +15,7 @@ spec:
       containers:
       - name: api-weather
         image: 172.16.29.104:8083/api_weather:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         env:
