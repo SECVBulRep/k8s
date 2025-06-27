@@ -1,22 +1,23 @@
-apiVersion: networking.k8s.io/v1     # API-версия для ресурсов типа Ingress
-kind: Ingress                        # Это объект Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: api-weather-ingress        # Имя Ingress-ресурса
+  name: api-weather-ingress
+  namespace: apps
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /  # Перезаписывает URL (важно при проксировании)
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-  - host: api-weather.local            # Домен, на который смотрит Ingress
+  - host: api-weather.local
     http:
       paths:
-      - path: /                     # Все пути (можно уточнять, например /api)
-        pathType: Prefix            # Тип сопоставления пути: "начинается с"
+      - path: /
+        pathType: Prefix
         backend:
           service:
-            name: api-weather     # Имя Kubernetes-сервиса, на который будет идти трафик
+            name: api-weather
             port:
-              number: 80           # Порт внутри этого сервиса
+              number: 80
   - host: weather-proxy.local
     http:
       paths:
